@@ -1,0 +1,65 @@
+rules_version = '2';
+
+/**
+ * 방명록 보안 규칙
+ * ------------------------------------------------------------------
+ * Firebase 콘솔 → Firestore Database → 규칙 탭에 통째로 붙여 넣고 [게시]를 누르세요.
+ * 아래 관리자 이메일을 Authentication 에 만든 관리자 계정으로 바꿔 주세요.
+ *
+ * - 누구나: 방명록 설정과 공개 소감을 읽고, 열린 방명록에 소감을 남길 수 있습니다.
+ * - 관리자만: 방명록 만들기·수정·삭제, 원래 이름 보기, 소감 삭제.
+ * - 남긴 소감은 아무도 고칠 수 없습니다 (관리자도 삭제만).
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email in ['pwoong99@naver.com'];
+    }
+
+    /** 공개용 소감이 방명록 설정에 맞는지 확인합니다. */
+    function validEntry(d, ev) {
+      return ev.open == true
+        && d.keys().hasOnly(['role', 'name', 'affiliation', 'comment', 'createdAt'])
+        && d.keys().hasAll(['role', 'name', 'affiliation', 'comment', 'createdAt'])
+        && d.role is string && d.role in ev.roleLabels
+        && d.name is string && d.name.size() <= 20
+        && d.affiliation is string && d.affiliation.size() <= 40
+        && d.comment is string && d.comment.size() > 0 && d.comment.size() <= ev.maxComment
+        && d.createdAt == request.time;
+    }
+
+    // 고정 주소가 여는 기본 방명록
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // 공개용 소감 — 이름은 이미 가려진 채로 저장됩니다.
+      match /entries/{entryId} {
+        allow read: if true;
+        allow delete: if isAdmin();
+        allow update: if false;
+        allow create: if validEntry(request.resource.data,
+              get(/databases/$(database)/documents/events/$(eventId)).data)
+          && existsAfter(/databases/$(database)/documents/events/$(eventId)/private/$(entryId));
+      }
+
+      // 원래 이름 — 관리자만 읽습니다. 공개 소감과 반드시 함께 저장됩니다.
+      match /private/{entryId} {
+        allow read, delete: if isAdmin();
+        allow update: if false;
+        allow create: if request.resource.data.keys().hasOnly(['name', 'createdAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 20
+          && request.resource.data.createdAt == request.time
+          && existsAfter(/databases/$(database)/documents/events/$(eventId)/entries/$(entryId));
+      }
+    }
+  }
+}

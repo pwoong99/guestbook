@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>방명록 관리</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F7F3EA;
+      --surface: #FFFFFF;
+      --primary: #4A7C59;
+      --primary-d: #3A6347;
+      --accent: #A8C4A2;
+      --badge-t-bg: #E6EFE7;
+      --badge-t-fg: #3A6347;
+      --badge-p-bg: #F3E8D8;
+      --badge-p-fg: #8A6A3E;
+      --text: #2F3A33;
+      --muted: #7A857D;
+      --line: #E7E1D5;
+      --danger: #B4503F;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      padding: 0 16px 40px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .wrap { max-width: 980px; margin: 0 auto; }
+
+    .topnav {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 20;
+    }
+    .chip {
+      display: inline-block;
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: none;
+      box-shadow: 0 1px 4px rgba(47, 58, 51, .08);
+    }
+    .chip:hover { color: var(--primary-d); border-color: var(--accent); }
+
+    header { padding: 52px 0 20px; }
+    header h1 {
+      margin: 0 0 4px;
+      font-family: 'Gowun Batang', serif;
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--primary-d);
+    }
+    header p { margin: 0; color: var(--muted); font-size: 14px; }
+    header .link {
+      background: none;
+      border: none;
+      padding: 0;
+      margin-left: 8px;
+      color: var(--primary);
+      font: inherit;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 22px 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 10px rgba(47, 58, 51, .06);
+    }
+    .card h2 {
+      margin: 0 0 14px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary-d);
+    }
+    .card h2 small { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
+
+    /* ---------- 입력 공통 ---------- */
+    label.lb {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .help { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+
+    input[type=text], input[type=email], input[type=password], input[type=number], textarea, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #FDFCF8;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+    }
+    textarea { resize: vertical; min-height: 64px; line-height: 1.5; }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(74, 124, 89, .13);
+    }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+    .grid .full { grid-column: 1 / -1; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 16px; }
+
+    .btn {
+      padding: 9px 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #FDFCF8;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .btn:hover { border-color: var(--accent); }
+    .btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 500; }
+    .btn.primary:hover:not(:disabled) { background: var(--primary-d); }
+    .btn.danger { color: var(--danger); border-color: #EBD5D0; background: #FDF6F4; }
+    .btn.danger:hover { background: #FBEAE6; }
+    .btn.small { padding: 5px 10px; font-size: 13px; border-radius: 8px; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn.full { width: 100%; margin-top: 16px; padding: 13px; font-size: 16px; }
+
+    .msg {
+      margin: 12px 0 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .msg.ok { background: var(--badge-t-bg); color: var(--badge-t-fg); }
+    .msg.err { background: #FBEAE6; color: var(--danger); }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 26px;
+      transform: translateX(-50%);
+      z-index: 50;
+      padding: 10px 20px;
+      border-radius: 999px;
+      background: var(--text);
+      color: #fff;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: .94; }
+    .toast.err { background: var(--danger); }
+
+    /* ---------- 로그인 ---------- */
+    .login { max-width: 380px; margin: 80px auto 0; }
+    .login .lb { margin-top: 12px; }
+    .login .lb:first-child { margin-top: 0; }
+
+    /* ---------- 방명록 고르기 ---------- */
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .row select { flex: 1 1 260px; width: auto; }
+    .newpanel {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 12px;
+      background: #FBF8F1;
+      border: 1px dashed var(--line);
+    }
+
+    /* ---------- 상태·주소 ---------- */
+    .status { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+    .pill {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .pill.on { background: var(--badge-t-bg); color: var(--badge-t-fg); }
+    .pill.off { background: #F0ECE4; color: var(--muted); }
+    .pill.star { background: var(--badge-p-bg); color: var(--badge-p-fg); }
+
+    .links { border-top: 1px solid var(--line); }
+    .link-row {
+      display: grid;
+      grid-template-columns: 150px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+    .link-row .what b { display: block; font-weight: 500; }
+    .link-row .what span { font-size: 12px; color: var(--muted); }
+    .link-row code {
+      font-size: 12px;
+      color: var(--muted);
+      word-break: break-all;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+    }
+    .link-row .acts { display: flex; gap: 6px; }
+    .link-row.dim { opacity: .55; }
+
+    /* ---------- 탭 ---------- */
+    .tabs { display: flex; gap: 6px; margin: 6px 0 14px; }
+    .tab {
+      padding: 9px 18px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .tab.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* ---------- 구분 편집 ---------- */
+    .roles { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .role-row {
+      display: grid;
+      grid-template-columns: 1.1fr 1.3fr 1fr 1.3fr auto auto;
+      gap: 8px;
+      align-items: end;
+      padding: 12px;
+      border-radius: 12px;
+      background: #FBF8F1;
+    }
+    .role-row label.lb { font-size: 12px; color: var(--muted); font-weight: 400; margin-bottom: 4px; }
+    .role-row .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; padding-bottom: 10px; white-space: nowrap; }
+    .role-row .chk input { width: 17px; height: 17px; accent-color: var(--primary); }
+    .role-row .rm { margin-bottom: 4px; }
+
+    .savebar {
+      position: sticky;
+      bottom: 0;
+      z-index: 15;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin: 0 -4px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .96);
+      box-shadow: 0 -2px 14px rgba(47, 58, 51, .10);
+    }
+    .savebar .state { flex: 1; font-size: 14px; color: var(--muted); }
+    .savebar .state.dirty { color: var(--badge-p-fg); font-weight: 500; }
+
+    /* ---------- 통계·표 ---------- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .stat {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 18px 14px;
+      text-align: center;
+      box-shadow: 0 1px 6px rgba(47, 58, 51, .05);
+    }
+    .stat .num {
+      font-family: 'Gowun Batang', serif;
+      font-size: 30px;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--primary-d);
+    }
+    .stat .cap { font-size: 13px; color: var(--muted); }
+
+    .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .toolbar .spacer { flex: 1; }
+
+    .table-wrap {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: 0 1px 6px rgba(47, 58, 51, .05);
+      overflow-x: auto;
+    }
+    table { width: 100%; min-width: 720px; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { background: #FBF8F1; font-weight: 500; font-size: 13px; color: var(--muted); white-space: nowrap; }
+    tbody tr:last-child td { border-bottom: none; }
+    td.time, td.aff { white-space: nowrap; color: var(--muted); font-size: 13px; }
+    td.nm { width: 150px; }
+    td.nm small { display: block; color: var(--muted); font-size: 12px; }
+    td.cmt { white-space: pre-wrap; word-break: break-word; min-width: 185px; }
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 500;
+      white-space: nowrap;
+      background: var(--badge-t-bg);
+      color: var(--badge-t-fg);
+    }
+    .badge.alt { background: var(--badge-p-bg); color: var(--badge-p-fg); }
+    .empty { padding: 44px 20px; text-align: center; color: var(--muted); font-size: 15px; }
+
+    /* ---------- QR ---------- */
+    .modal {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(47, 58, 51, .45);
+      padding: 16px;
+    }
+    .modal .box {
+      width: 100%;
+      max-width: 360px;
+      padding: 24px;
+      border-radius: var(--radius);
+      background: #fff;
+      text-align: center;
+    }
+    .modal h3 { margin: 0 0 4px; font-family: 'Gowun Batang', serif; color: var(--primary-d); }
+    .modal p { margin: 0 0 14px; font-size: 12px; color: var(--muted); word-break: break-all; }
+    #qrBox { display: flex; justify-content: center; margin-bottom: 16px; }
+    #qrBox img, #qrBox canvas { width: 240px; height: 240px; }
+    .modal .row { justify-content: center; }
+
+    @media (max-width: 720px) {
+      .grid, .grid3 { grid-template-columns: 1fr; }
+      .role-row { grid-template-columns: 1fr 1fr; }
+      .link-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="topnav">
+    <a class="chip" id="toWrite" href="./" target="_blank">방명록</a>
+    <a class="chip" id="toDisplay" href="display.html" target="_blank">디스플레이</a>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- 로그인 -->
+    <section id="loginView">
+      <div class="card login">
+        <label class="lb" for="email">관리자 이메일</label>
+        <input type="email" id="email" autocomplete="username">
+        <label class="lb" for="pw">비밀번호</label>
+        <input type="password" id="pw" autocomplete="current-password">
+        <button type="button" class="btn primary full" id="loginBtn">들어가기</button>
+        <p class="msg err" id="loginMsg" hidden></p>
+      </div>
+    </section>
+
+    <!-- 관리 화면 -->
+    <section id="adminView" hidden>
+      <header>
+        <h1>방명록 관리</h1>
+        <p><span id="who"></span><button type="button" class="link" id="logoutBtn">나가기</button></p>
+      </header>
+
+      <!-- 방명록 고르기 -->
+      <div class="card">
+        <h2>방명록 <small>행사마다 하나씩 만들어 두고 골라 쓰세요</small></h2>
+        <div class="row">
+          <select id="eventSel" aria-label="방명록 선택"></select>
+          <button type="button" class="btn" id="newBtn">+ 새 방명록</button>
+          <button type="button" class="btn" id="dupBtn">복제</button>
+          <button type="button" class="btn danger" id="delEventBtn">삭제</button>
+        </div>
+
+        <div class="newpanel" id="newPanel" hidden>
+          <div class="grid">
+            <div>
+              <label class="lb" for="newPreset">어떤 방명록으로 시작할까요?</label>
+              <select id="newPreset"></select>
+            </div>
+            <div>
+              <label class="lb" for="newName">관리용 이름</label>
+              <input type="text" id="newName" maxlength="40" placeholder="예) 2026 2학기 공개수업">
+            </div>
+          </div>
+          <div class="row" style="margin-top:12px; justify-content:flex-end;">
+            <button type="button" class="btn" id="newCancel">취소</button>
+            <button type="button" class="btn primary" id="newCreate">만들기</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card empty" id="noEvent" hidden>방명록이 없습니다. "+ 새 방명록"으로 만들어 주세요.</div>
+
+      <div id="eventBody" hidden>
+      <!-- 상태와 주소 -->
+      <div class="card" id="statusCard">
+        <div class="status">
+          <span class="pill" id="openPill"></span>
+          <button type="button" class="btn small" id="openBtn"></button>
+          <span class="pill star" id="defaultPill" hidden>★ 기본 방명록</span>
+          <button type="button" class="btn small" id="defaultBtn" hidden>★ 기본 방명록으로 지정</button>
+        </div>
+        <div class="links" id="links"></div>
+        <p class="help">
+          <b>고정 주소</b>는 언제나 ★ 기본 방명록을 엽니다. QR 코드는 고정 주소로 한 번만 만들어 두고,
+          행사가 바뀌면 기본 방명록만 바꾸세요. 고정 주소로 켜 둔 디스플레이는 저절로 새 방명록으로 바뀝니다.
+        </p>
+      </div>
+
+      <div class="tabs">
+        <button type="button" class="tab active" data-tab="settings">설정</button>
+        <button type="button" class="tab" data-tab="entries">소감 목록 <span id="tabCount"></span></button>
+      </div>
+
+      <!-- 설정 -->
+      <section id="tabSettings">
+        <div class="card">
+          <h2>작성 화면</h2>
+          <div class="grid">
+            <div>
+              <label class="lb" for="f_name">관리용 이름</label>
+              <input type="text" id="f_name" maxlength="40">
+              <p class="help">관리자 화면의 목록에만 보입니다.</p>
+            </div>
+            <div>
+              <label class="lb" for="f_title">제목</label>
+              <input type="text" id="f_title" maxlength="40">
+            </div>
+            <div class="full">
+              <label class="lb" for="f_subtitle">제목 아래 안내 문구</label>
+              <input type="text" id="f_subtitle" maxlength="100">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>참여자 구분 <small>구분이 하나뿐이면 작성 화면에서 고르는 칸이 숨겨집니다</small></h2>
+          <div class="grid" style="margin-bottom:14px;">
+            <div>
+              <label class="lb" for="f_roleLabel">구분 질문</label>
+              <input type="text" id="f_roleLabel" maxlength="20" placeholder="예) 참관 구분">
+            </div>
+          </div>
+          <div class="roles" id="roles"></div>
+          <button type="button" class="btn" id="addRoleBtn">+ 구분 추가</button>
+
+          <div class="grid" style="margin-top:16px;">
+            <div>
+              <label class="lb" for="f_gradeCount">학년 · 반 선택 — 학년 수</label>
+              <input type="number" id="f_gradeCount" min="1" max="12">
+            </div>
+            <div>
+              <label class="lb" for="f_classCount">학년 · 반 선택 — 반 수</label>
+              <input type="number" id="f_classCount" min="1" max="30">
+            </div>
+          </div>
+          <p class="help">"이름 가림"을 켠 구분은 공개 화면에 성만 보입니다 (예: 김○○). 원래 이름은 이 관리자 화면에서만 볼 수 있습니다.</p>
+        </div>
+
+        <div class="card">
+          <h2>이름과 소감</h2>
+          <div class="grid3">
+            <div>
+              <label class="lb" for="f_nameMode">이름 받기</label>
+              <select id="f_nameMode"></select>
+            </div>
+            <div>
+              <label class="lb" for="f_nameLabel">이름 칸 제목</label>
+              <input type="text" id="f_nameLabel" maxlength="20">
+            </div>
+            <div>
+              <label class="lb" for="f_namePlaceholder">이름 칸 안내</label>
+              <input type="text" id="f_namePlaceholder" maxlength="40">
+            </div>
+          </div>
+          <div class="grid" style="margin-top:14px;">
+            <div>
+              <label class="lb" for="f_commentLabel">소감 칸 제목</label>
+              <input type="text" id="f_commentLabel" maxlength="20">
+            </div>
+            <div>
+              <label class="lb" for="f_maxComment">최대 글자 수</label>
+              <input type="number" id="f_maxComment" min="10" max="2000">
+            </div>
+            <div class="full">
+              <label class="lb" for="f_guide">소감 칸 위 안내 (비워 두면 숨김)</label>
+              <input type="text" id="f_guide" maxlength="100">
+            </div>
+            <div class="full">
+              <label class="lb" for="f_placeholder">소감 칸 속 흐린 글씨</label>
+              <textarea id="f_placeholder" maxlength="200"></textarea>
+            </div>
+            <div>
+              <label class="lb" for="f_submitLabel">등록 버튼 글자</label>
+              <input type="text" id="f_submitLabel" maxlength="20">
+            </div>
+            <div>
+              <label class="lb" for="f_successMessage">등록 후 인사</label>
+              <input type="text" id="f_successMessage" maxlength="60">
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>디스플레이 화면</h2>
+          <div class="grid">
+            <div>
+              <label class="lb" for="f_displayTitle">왼쪽 위 제목</label>
+              <input type="text" id="f_displayTitle" maxlength="40">
+            </div>
+            <div>
+              <label class="lb" for="f_hintText">소감이 없을 때 문구</label>
+              <input type="text" id="f_hintText" maxlength="40">
+            </div>
+            <div class="full">
+              <label class="lb" for="f_counterText">누적 문구 ({n} 자리에 숫자가 들어갑니다, 비워 두면 숨김)</label>
+              <input type="text" id="f_counterText" maxlength="60">
+            </div>
+          </div>
+        </div>
+
+        <div class="savebar">
+          <span class="state" id="saveState">저장된 상태입니다</span>
+          <button type="button" class="btn" id="revertBtn">되돌리기</button>
+          <button type="button" class="btn primary" id="saveBtn">저장</button>
+        </div>
+      </section>
+
+      <!-- 소감 목록 -->
+      <section id="tabEntries" hidden>
+        <div class="stats" id="stats"></div>
+        <div class="toolbar">
+          <span class="help" style="margin:0;">새 소감은 자동으로 추가됩니다.</span>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="csvBtn">엑셀용 CSV 저장</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>시간</th>
+                <th>구분</th>
+                <th>이름</th>
+                <th>소속 · 학급</th>
+                <th>소감</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+          <div class="empty" id="emptyBox" hidden>아직 등록된 소감이 없습니다.</div>
+        </div>
+      </section>
+      </div>
+    </section>
+  </div>
+
+  <!-- QR 코드 -->
+  <div class="modal" id="qrModal" hidden>
+    <div class="box">
+      <h3 id="qrTitle">QR 코드</h3>
+      <p id="qrUrl"></p>
+      <div id="qrBox"></div>
+      <div class="row">
+        <button type="button" class="btn" id="qrClose">닫기</button>
+        <button type="button" class="btn primary" id="qrSave">이미지 저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    /** 설정 화면의 글자 칸 — id 는 'f_' + 키 */
+    var TEXT_KEYS = [
+      'name', 'title', 'subtitle', 'roleLabel', 'nameLabel', 'namePlaceholder',
+      'commentLabel', 'guide', 'placeholder', 'submitLabel', 'successMessage',
+      'displayTitle', 'hintText', 'counterText'
+    ];
+    var NUM_KEYS = ['maxComment', 'gradeCount', 'classCount'];
+
+    var events = [];           // [{ id, ev }]
+    var defaultId = '';
+    var currentId = '';
+    var current = null;        // 지금 고른 방명록의 저장된 설정
+    var rolesDraft = [];       // 편집 중인 구분 목록
+    var dirty = false;
+    var bootstrapped = false;
+    var entries = [];
+    var privateNames = {};
+    var unsub = [];            // 로그인 동안 붙여 둔 리스너
+    var entryUnsub = [];       // 고른 방명록의 소감 리스너
+    var formId = '';           // 설정 양식에 채워 둔 방명록
+    var watchingId = '';       // 소감 목록을 지켜보는 방명록
+    var qrText = '';
+    var toastTimer = null;
+
+    function $(id) { return document.getElementById(id); }
+
+    /* ================= 로그인 ================= */
+    var auth = firebase.auth();
+
+    $('loginBtn').addEventListener('click', login);
+    $('pw').addEventListener('keydown', function (e) { if (e.key === 'Enter') login(); });
+    $('email').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('pw').focus(); });
+    $('logoutBtn').addEventListener('click', function () {
+      if (dirty && !confirm('저장하지 않은 설정이 있습니다. 그래도 나갈까요?')) return;
+      dirty = false;
+      auth.signOut();
+    });
+
+    function login() {
+      var email = $('email').value.trim();
+      var pw = $('pw').value;
+      if (!email || !pw) {
+        loginMsg('이메일과 비밀번호를 입력해 주세요.');
+        return;
+      }
+      $('loginBtn').disabled = true;
+      $('loginBtn').textContent = '확인 중…';
+      $('loginMsg').hidden = true;
+
+      auth.signInWithEmailAndPassword(email, pw).then(function () {
+        $('pw').value = '';
+      }).catch(function (err) {
+        var code = err && err.code;
+        loginMsg(code === 'auth/network-request-failed'
+          ? '연결이 끊겼습니다. 다시 시도해 주세요.'
+          : '이메일 또는 비밀번호가 맞지 않습니다.');
+      }).then(function () {
+        $('loginBtn').disabled = false;
+        $('loginBtn').textContent = '들어가기';
+      });
+    }
+
+    function loginMsg(text) {
+      $('loginMsg').textContent = text;
+      $('loginMsg').hidden = false;
+    }
+
+    auth.onAuthStateChanged(function (user) {
+      stopAll();
+      if (!user) {
+        $('adminView').hidden = true;
+        $('loginView').hidden = false;
+        $('email').focus();
+        return;
+      }
+      $('loginView').hidden = true;
+      $('adminView').hidden = false;
+      $('who').textContent = user.email + ' 로 들어왔습니다.';
+      currentId = currentId || GB.param('e');
+      startWatching();
+    });
+
+    function stopAll() {
+      unsub.forEach(function (fn) { fn(); });
+      unsub = [];
+      stopEntries();
+      events = [];
+      bootstrapped = false;
+      formId = '';
+    }
+
+    /** 권한이 없으면 보안 규칙이 막습니다. 그때 알아보기 쉽게 알려 줍니다. */
+    function failMsg(err, fallback) {
+      if (err && err.code === 'permission-denied') {
+        return '이 계정에는 관리자 권한이 없습니다. firestore.rules 의 관리자 이메일을 확인해 주세요.';
+      }
+      return fallback || '연결이 끊겼습니다. 다시 시도해 주세요.';
+    }
+
+    /* ================= 방명록 목록 ================= */
+    function startWatching() {
+      unsub.push(db.collection('settings').doc('app').onSnapshot(function (snap) {
+        defaultId = (snap.exists && snap.data().defaultEventId) || '';
+        renderEventSelect();
+        renderStatus();
+      }, function (err) { toast(failMsg(err), true); }));
+
+      unsub.push(db.collection('events').orderBy('createdAt', 'asc').onSnapshot(function (snap) {
+        events = snap.docs.map(function (d) {
+          return { id: d.id, ev: GB.normalizeEvent(d.data()) };
+        });
+
+        // 처음 들어왔는데 방명록이 하나도 없으면 공개수업 방명록을 하나 만들어 둡니다.
+        if (!events.length && !bootstrapped) {
+          bootstrapped = true;
+          createEvent('openClass', '공개수업 방명록', true);
+          return;
+        }
+        bootstrapped = true;
+
+        if (!findEvent(currentId)) {
+          currentId = findEvent(defaultId) ? defaultId : (events.length ? events[events.length - 1].id : '');
+        }
+        renderEventSelect();
+        selectEvent(currentId);
+      }, function (err) { toast(failMsg(err), true); }));
+    }
+
+    function findEvent(id) {
+      for (var i = 0; i < events.length; i++) {
+        if (events[i].id === id) return events[i];
+      }
+      return null;
+    }
+
+    function renderEventSelect() {
+      var sel = $('eventSel');
+      sel.innerHTML = '';
+      events.slice().reverse().forEach(function (it) {
+        var label = (it.id === defaultId ? '★ ' : '') + it.ev.name + (it.ev.open ? '' : ' (마감)');
+        sel.appendChild(new Option(label, it.id));
+      });
+      sel.value = currentId;
+    }
+
+    $('eventSel').addEventListener('change', function () {
+      var next = $('eventSel').value;
+      if (dirty && !confirm('저장하지 않은 설정이 있습니다. 버리고 다른 방명록으로 갈까요?')) {
+        $('eventSel').value = currentId;
+        return;
+      }
+      dirty = false;
+      selectEvent(next);
+    });
+
+    /**
+     * 방명록을 고릅니다. 같은 방명록의 새 값이 들어왔을 때는
+     * 편집 중인 내용이 있으면 덮어쓰지 않습니다.
+     */
+    function selectEvent(id) {
+      var it = findEvent(id);
+      currentId = id;
+      current = it ? it.ev : null;
+
+      $('eventBody').hidden = !it;
+      $('noEvent').hidden = !!it || !bootstrapped;
+      $('toWrite').href = GB.writeUrl(id);
+      $('toDisplay').href = GB.displayUrl(id);
+
+      if (!it) {
+        stopEntries();
+        formId = '';
+        setDirty(false);
+        return;
+      }
+
+      renderStatus();
+      if (formId !== id || !dirty) {
+        fillForm(current);
+        setDirty(false);
+        formId = id;
+      }
+      if (watchingId !== id) watchEntries();
+      history.replaceState(null, '', '?e=' + encodeURIComponent(id));
+    }
+
+    /* ================= 새로 만들기 · 복제 · 삭제 ================= */
+    GB.PRESETS.forEach(function (p) {
+      $('newPreset').appendChild(new Option(p.label, p.key));
+    });
+
+    $('newBtn').addEventListener('click', function () {
+      $('newPanel').hidden = !$('newPanel').hidden;
+      if (!$('newPanel').hidden) $('newName').focus();
+    });
+    $('newCancel').addEventListener('click', function () { $('newPanel').hidden = true; });
+    $('newCreate').addEventListener('click', function () {
+      if (dirty && !confirm('저장하지 않은 설정이 있습니다. 버리고 새로 만들까요?')) return;
+      var name = $('newName').value.trim();
+      if (!name) {
+        var preset = $('newPreset');
+        name = preset.options[preset.selectedIndex].text.replace(/\s*\(.*\)$/, '');
+      }
+      createEvent($('newPreset').value, name, false);
+      $('newName').value = '';
+      $('newPanel').hidden = true;
+    });
+
+    function createEvent(presetKey, name, makeDefault) {
+      var data = GB.presetDoc(presetKey, name);
+      addEventDoc(data, makeDefault, '새 방명록을 만들었습니다.');
+    }
+
+    function addEventDoc(data, makeDefault, okText) {
+      var ref = db.collection('events').doc();
+      var now = firebase.firestore.FieldValue.serverTimestamp();
+      data.open = data.open !== false;
+      data.createdAt = now;
+      data.updatedAt = now;
+
+      var batch = db.batch();
+      batch.set(ref, data);
+      if (makeDefault) batch.set(db.collection('settings').doc('app'), { defaultEventId: ref.id }, { merge: true });
+
+      dirty = false;
+      currentId = ref.id;
+      batch.commit().then(function () {
+        toast(okText);
+      }).catch(function (err) {
+        toast(failMsg(err, '만들지 못했습니다.'), true);
+      });
+    }
+
+    $('dupBtn').addEventListener('click', function () {
+      if (!current) return;
+      if (dirty && !confirm('저장하지 않은 설정은 복제되지 않습니다. 저장된 설정으로 복제할까요?')) return;
+      var data = GB.toDoc(current);
+      data.name = current.name + ' (복사본)';
+      data.open = true;
+      addEventDoc(data, false, '복제했습니다. 소감은 복사되지 않습니다.');
+    });
+
+    $('delEventBtn').addEventListener('click', function () {
+      if (!current) return;
+      var n = entries.length;
+      var q = '"' + current.name + '" 방명록을 삭제할까요?\n' +
+              (n ? '남겨진 소감 ' + n + '개도 함께 지워지고, ' : '') + '되돌릴 수 없습니다.';
+      if (!confirm(q)) return;
+      if (n && !confirm('정말 삭제할까요? 필요하면 먼저 "엑셀용 CSV 저장"으로 소감을 받아 두세요.')) return;
+      deleteEvent(currentId);
+    });
+
+    /** 하위 소감까지 지운 뒤 방명록을 지웁니다. 한 번에 최대 400개씩 나눠 지웁니다. */
+    function deleteEvent(id) {
+      var evRef = db.collection('events').doc(id);
+      $('delEventBtn').disabled = true;
+
+      Promise.all([evRef.collection('entries').get(), evRef.collection('private').get()])
+        .then(function (res) {
+          var refs = res[0].docs.concat(res[1].docs).map(function (d) { return d.ref; });
+          var chunks = [];
+          for (var i = 0; i < refs.length; i += 400) chunks.push(refs.slice(i, i + 400));
+
+          return chunks.reduce(function (p, chunk) {
+            return p.then(function () {
+              var b = db.batch();
+              chunk.forEach(function (r) { b.delete(r); });
+              return b.commit();
+            });
+          }, Promise.resolve());
+        })
+        .then(function () {
+          var b = db.batch();
+          b.delete(evRef);
+          if (defaultId === id) b.set(db.collection('settings').doc('app'), { defaultEventId: '' }, { merge: true });
+          dirty = false;
+          currentId = '';
+          return b.commit();
+        })
+        .then(function () { toast('삭제했습니다.'); })
+        .catch(function (err) { toast(failMsg(err, '삭제하지 못했습니다.'), true); })
+        .then(function () { $('delEventBtn').disabled = false; });
+    }
+
+    /* ================= 상태 · 주소 ================= */
+    $('openBtn').addEventListener('click', function () {
+      if (!current) return;
+      var next = !current.open;
+      if (!next && !confirm('방명록을 마감할까요? 마감하면 새 소감을 받지 않습니다.\n(디스플레이는 계속 보입니다)')) return;
+      db.collection('events').doc(currentId).update({
+        open: next,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(function () {
+        toast(next ? '다시 소감을 받습니다.' : '마감했습니다.');
+      }).catch(function (err) { toast(failMsg(err), true); });
+    });
+
+    $('defaultBtn').addEventListener('click', function () {
+      db.collection('settings').doc('app').set({ defaultEventId: currentId }, { merge: true })
+        .then(function () { toast('기본 방명록으로 지정했습니다. 고정 주소가 이 방명록을 엽니다.'); })
+        .catch(function (err) { toast(failMsg(err), true); });
+    });
+
+    function renderStatus() {
+      if (!current) return;
+      $('openPill').className = 'pill ' + (current.open ? 'on' : 'off');
+      $('openPill').textContent = current.open ? '● 소감 받는 중' : '마감됨';
+      $('openBtn').textContent = current.open ? '마감하기' : '다시 열기';
+
+      var isDefault = currentId === defaultId;
+      $('defaultPill').hidden = !isDefault;
+      $('defaultBtn').hidden = isDefault;
+
+      var box = $('links');
+      box.innerHTML = '';
+      box.appendChild(linkRow('작성 · 고정 주소', '★ 기본 방명록을 엽니다', GB.writeUrl(''), !isDefault));
+      box.appendChild(linkRow('디스플레이 · 고정 주소', '★ 기본 방명록을 띄웁니다', GB.displayUrl(''), !isDefault));
+      box.appendChild(linkRow('작성 · 이 방명록', '언제나 이 방명록만', GB.writeUrl(currentId), false));
+      box.appendChild(linkRow('디스플레이 · 이 방명록', '언제나 이 방명록만', GB.displayUrl(currentId), false));
+    }
+
+    function linkRow(title, sub, url, dim) {
+      var row = document.createElement('div');
+      row.className = 'link-row' + (dim ? ' dim' : '');
+      if (dim) row.title = '지금은 다른 방명록이 기본 방명록입니다.';
+
+      var what = document.createElement('div');
+      what.className = 'what';
+      var b = document.createElement('b');
+      b.textContent = title;
+      var s = document.createElement('span');
+      s.textContent = sub;
+      what.appendChild(b);
+      what.appendChild(s);
+
+      var code = document.createElement('code');
+      code.textContent = url;
+
+      var acts = document.createElement('div');
+      acts.className = 'acts';
+      acts.appendChild(smallBtn('복사', function () { copy(url); }));
+      acts.appendChild(smallBtn('열기', function () { window.open(url, '_blank'); }));
+      acts.appendChild(smallBtn('QR', function () { showQr(title, url); }));
+
+      row.appendChild(what);
+      row.appendChild(code);
+      row.appendChild(acts);
+      return row;
+    }
+
+    function smallBtn(text, fn) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn small';
+      b.textContent = text;
+      b.addEventListener('click', fn);
+      return b;
+    }
+
+    function copy(text) {
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); toast('주소를 복사했습니다.'); }
+        catch (e) { toast('복사하지 못했습니다. 직접 선택해 복사해 주세요.', true); }
+        document.body.removeChild(ta);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { toast('주소를 복사했습니다.'); }, fallback);
+      } else {
+        fallback();
+      }
+    }
+
+    /* ---------- QR ---------- */
+    function showQr(title, url) {
+      if (typeof QRCode === 'undefined') {
+        toast('QR 도구를 불러오지 못했습니다. 새로고침해 주세요.', true);
+        return;
+      }
+      qrText = title;
+      $('qrTitle').textContent = (current ? current.title + ' · ' : '') + title;
+      $('qrUrl').textContent = url;
+      $('qrBox').innerHTML = '';
+      new QRCode($('qrBox'), { text: url, width: 480, height: 480, correctLevel: QRCode.CorrectLevel.M });
+      $('qrModal').hidden = false;
+    }
+    $('qrClose').addEventListener('click', function () { $('qrModal').hidden = true; });
+    $('qrModal').addEventListener('click', function (e) { if (e.target === $('qrModal')) $('qrModal').hidden = true; });
+    $('qrSave').addEventListener('click', function () {
+      var canvas = $('qrBox').querySelector('canvas');
+      if (!canvas) return;
+      var a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = 'QR_' + (current ? current.name : '방명록') + '_' + qrText.replace(/\s|·/g, '') + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    /* ================= 설정 양식 ================= */
+    Object.keys(GB.NAME_MODES).forEach(function (k) {
+      $('f_nameMode').appendChild(new Option(GB.NAME_MODES[k], k));
+    });
+
+    function fillForm(ev) {
+      TEXT_KEYS.forEach(function (k) { $('f_' + k).value = ev[k]; });
+      NUM_KEYS.forEach(function (k) { $('f_' + k).value = ev[k]; });
+      $('f_nameMode').value = ev.nameMode;
+      rolesDraft = GB.clone(ev.roles);
+      renderRoles();
+    }
+
+    function renderRoles() {
+      var box = $('roles');
+      box.innerHTML = '';
+      rolesDraft.forEach(function (r, i) { box.appendChild(roleRow(r, i)); });
+    }
+
+    function roleRow(r, i) {
+      var row = document.createElement('div');
+      row.className = 'role-row';
+
+      row.appendChild(cell('구분 이름', input(r.label, 20, '예) 학부모', function (v) { r.label = v; })));
+
+      var sel = document.createElement('select');
+      Object.keys(GB.EXTRA_TYPES).forEach(function (k) { sel.appendChild(new Option(GB.EXTRA_TYPES[k], k)); });
+      sel.value = r.extra;
+      sel.addEventListener('change', function () {
+        r.extra = sel.value;
+        if (r.extra === 'class' && !r.extraLabel) r.extraLabel = '학급';
+        if (r.extra === 'text' && !r.extraLabel) r.extraLabel = '소속';
+        setDirty(true);
+        renderRoles();
+      });
+      row.appendChild(cell('추가로 받을 것', sel));
+
+      var lab = input(r.extraLabel, 20, '예) 소속', function (v) { r.extraLabel = v; });
+      lab.disabled = r.extra === 'none';
+      row.appendChild(cell('추가 칸 제목', lab));
+
+      var ph = input(r.extraPlaceholder, 40, '예) 햇살초등학교', function (v) { r.extraPlaceholder = v; });
+      ph.disabled = r.extra !== 'text';
+      row.appendChild(cell('추가 칸 안내', ph));
+
+      var chk = document.createElement('label');
+      chk.className = 'chk';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = r.mask;
+      cb.addEventListener('change', function () { r.mask = cb.checked; setDirty(true); });
+      chk.appendChild(cb);
+      chk.appendChild(document.createTextNode('이름 가림'));
+      row.appendChild(chk);
+
+      var rm = smallBtn('삭제', function () {
+        if (rolesDraft.length <= 1) {
+          toast('구분은 하나 이상 있어야 합니다.', true);
+          return;
+        }
+        rolesDraft.splice(i, 1);
+        setDirty(true);
+        renderRoles();
+      });
+      rm.className = 'btn small danger rm';
+      row.appendChild(rm);
+      return row;
+    }
+
+    function cell(label, control) {
+      var d = document.createElement('div');
+      var l = document.createElement('label');
+      l.className = 'lb';
+      l.textContent = label;
+      d.appendChild(l);
+      d.appendChild(control);
+      return d;
+    }
+
+    function input(value, max, ph, onInput) {
+      var inp = document.createElement('input');
+      inp.type = 'text';
+      inp.value = value || '';
+      inp.maxLength = max;
+      inp.placeholder = ph;
+      inp.addEventListener('input', function () { onInput(inp.value); setDirty(true); });
+      return inp;
+    }
+
+    $('addRoleBtn').addEventListener('click', function () {
+      if (rolesDraft.length >= 8) {
+        toast('구분은 8개까지 만들 수 있습니다.', true);
+        return;
+      }
+      rolesDraft.push({ label: '', extra: 'none', extraLabel: '', extraPlaceholder: '', mask: false });
+      setDirty(true);
+      renderRoles();
+      var inputs = $('roles').querySelectorAll('.role-row');
+      inputs[inputs.length - 1].querySelector('input').focus();
+    });
+
+    // 고정된 칸은 한 번만 연결해 둡니다.
+    TEXT_KEYS.concat(NUM_KEYS).concat(['nameMode']).forEach(function (k) {
+      var node = $('f_' + k);
+      node.addEventListener(node.tagName === 'SELECT' ? 'change' : 'input', function () { setDirty(true); });
+    });
+
+    function setDirty(v) {
+      dirty = v;
+      $('saveState').textContent = v ? '저장하지 않은 변경 사항이 있습니다' : '저장된 상태입니다';
+      $('saveState').className = 'state' + (v ? ' dirty' : '');
+      $('saveBtn').disabled = !v;
+      $('revertBtn').disabled = !v;
+    }
+
+    $('revertBtn').addEventListener('click', function () {
+      if (!current) return;
+      fillForm(current);
+      setDirty(false);
+    });
+
+    $('saveBtn').addEventListener('click', save);
+
+    function save() {
+      if (!current) return;
+
+      var ev = GB.clone(current);
+      TEXT_KEYS.forEach(function (k) { ev[k] = $('f_' + k).value.trim(); });
+      ev.maxComment = GB.clampInt($('f_maxComment').value, 10, 2000, 500);
+      ev.gradeCount = GB.clampInt($('f_gradeCount').value, 1, 12, 6);
+      ev.classCount = GB.clampInt($('f_classCount').value, 1, 30, 12);
+      ev.nameMode = $('f_nameMode').value;
+      ev.roles = rolesDraft.map(GB.normRole);
+
+      // 확인
+      if (!ev.name) return toast('관리용 이름을 적어 주세요.', true);
+      if (!ev.title) return toast('제목을 적어 주세요.', true);
+      if (!ev.roles.length) return toast('구분은 하나 이상 있어야 합니다.', true);
+      var seenLabels = {};
+      for (var i = 0; i < ev.roles.length; i++) {
+        var lb = ev.roles[i].label;
+        if (!lb) return toast((i + 1) + '번째 구분의 이름을 적어 주세요.', true);
+        if (seenLabels[lb]) return toast('"' + lb + '" 구분이 두 번 있습니다.', true);
+        seenLabels[lb] = true;
+      }
+
+      var data = GB.toDoc(GB.normalizeEvent(ev));
+      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+
+      $('saveBtn').disabled = true;
+      $('saveBtn').textContent = '저장 중…';
+      db.collection('events').doc(currentId).update(data).then(function () {
+        setDirty(false);
+        toast('저장했습니다. 열려 있는 화면에도 바로 반영됩니다.');
+      }).catch(function (err) {
+        $('saveBtn').disabled = false;
+        toast(failMsg(err, '저장하지 못했습니다.'), true);
+      }).then(function () {
+        $('saveBtn').textContent = '저장';
+      });
+    }
+
+    window.addEventListener('beforeunload', function (e) {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
+
+    /* ================= 탭 ================= */
+    var tabs = document.querySelectorAll('.tab');
+    for (var t = 0; t < tabs.length; t++) {
+      tabs[t].addEventListener('click', function () {
+        var name = this.getAttribute('data-tab');
+        for (var j = 0; j < tabs.length; j++) tabs[j].classList.toggle('active', tabs[j] === this);
+        $('tabSettings').hidden = name !== 'settings';
+        $('tabEntries').hidden = name !== 'entries';
+      });
+    }
+
+    /* ================= 소감 목록 ================= */
+    function stopEntries() {
+      entryUnsub.forEach(function (fn) { fn(); });
+      entryUnsub = [];
+      entries = [];
+      privateNames = {};
+      watchingId = '';
+    }
+
+    function watchEntries() {
+      stopEntries();
+      renderEntries();
+      if (!currentId) return;
+      watchingId = currentId;
+      var evRef = db.collection('events').doc(currentId);
+
+      entryUnsub.push(evRef.collection('entries').orderBy('createdAt', 'desc').onSnapshot(function (snap) {
+        entries = snap.docs.map(GB.entryFromDoc);
+        renderEntries();
+      }, function (err) { toast(failMsg(err), true); }));
+
+      // 원래 이름은 관리자만 읽을 수 있는 곳에 따로 있습니다.
+      entryUnsub.push(evRef.collection('private').onSnapshot(function (snap) {
+        privateNames = {};
+        snap.docs.forEach(function (d) { privateNames[d.id] = String(d.data().name || ''); });
+        renderEntries();
+      }, function (err) { toast(failMsg(err), true); }));
+    }
+
+    function realName(it) {
+      return privateNames.hasOwnProperty(it.id) ? privateNames[it.id] : it.name;
+    }
+
+    function renderEntries() {
+      $('tabCount').textContent = entries.length ? '(' + entries.length + ')' : '';
+
+      // 통계: 전체 + 구분별 (지금 설정에 없는 예전 구분도 함께)
+      var counts = {};
+      var order = current ? current.roles.map(function (r) { return r.label; }) : [];
+      entries.forEach(function (e) {
+        if (!counts.hasOwnProperty(e.role)) {
+          counts[e.role] = 0;
+          if (order.indexOf(e.role) === -1) order.push(e.role);
+        }
+        counts[e.role]++;
+      });
+      var stats = $('stats');
+      stats.innerHTML = '';
+      stats.appendChild(statTile(entries.length, '전체 참여'));
+      if (order.length > 1) {
+        order.forEach(function (r) { stats.appendChild(statTile(counts[r] || 0, r || '(구분 없음)')); });
+      }
+
+      // 표
+      var roleIndex = {};
+      order.forEach(function (r, i) { roleIndex[r] = i; });
+      var tbody = $('tbody');
+      tbody.innerHTML = '';
+      $('emptyBox').hidden = entries.length > 0;
+
+      var frag = document.createDocumentFragment();
+      entries.forEach(function (it) {
+        var tr = document.createElement('tr');
+        tr.appendChild(td('time', it.time));
+
+        var roleTd = document.createElement('td');
+        var badge = document.createElement('span');
+        badge.className = 'badge' + (roleIndex[it.role] % 2 ? ' alt' : '');
+        badge.textContent = it.role || '—';
+        roleTd.appendChild(badge);
+        tr.appendChild(roleTd);
+
+        var nmTd = td('nm', realName(it) || '익명');
+        if (it.name && it.name !== realName(it)) {
+          var sm = document.createElement('small');
+          sm.textContent = '공개: ' + it.name;
+          nmTd.appendChild(sm);
+        }
+        tr.appendChild(nmTd);
+        tr.appendChild(td('aff', it.affiliation || '—'));
+        tr.appendChild(td('cmt', it.comment));
+
+        var act = document.createElement('td');
+        var del = smallBtn('삭제', function () { removeEntry(it, del); });
+        del.className = 'btn small danger';
+        act.appendChild(del);
+        tr.appendChild(act);
+
+        frag.appendChild(tr);
+      });
+      tbody.appendChild(frag);
+    }
+
+    function statTile(n, cap) {
+      var d = document.createElement('div');
+      d.className = 'stat';
+      var a = document.createElement('div');
+      a.className = 'num';
+      a.textContent = n;
+      var b = document.createElement('div');
+      b.className = 'cap';
+      b.textContent = cap;
+      d.appendChild(a);
+      d.appendChild(b);
+      return d;
+    }
+
+    function td(cls, text) {
+      var c = document.createElement('td');
+      if (cls) c.className = cls;
+      c.textContent = text;
+      return c;
+    }
+
+    function removeEntry(it, btn) {
+      var who = realName(it) ? realName(it) + '님' : '익명';
+      if (!confirm(who + '의 소감을 삭제할까요?\n디스플레이에서도 바로 내려가고, 되돌릴 수 없습니다.')) return;
+      btn.disabled = true;
+      btn.textContent = '삭제 중…';
+
+      var evRef = db.collection('events').doc(currentId);
+      var b = db.batch();
+      b.delete(evRef.collection('entries').doc(it.id));
+      b.delete(evRef.collection('private').doc(it.id));
+      b.commit().then(function () {
+        toast('삭제했습니다.');
+      }).catch(function (err) {
+        btn.disabled = false;
+        btn.textContent = '삭제';
+        toast(failMsg(err, '삭제하지 못했습니다.'), true);
+      });
+    }
+
+    /* ---------- CSV (엑셀에서 한글이 깨지지 않게 BOM 을 붙입니다) ---------- */
+    $('csvBtn').addEventListener('click', function () {
+      if (!entries.length) return toast('저장할 소감이 없습니다.', true);
+      var rows = [['시간', '구분', '이름', '공개 이름', '소속·학급', '소감']];
+      entries.slice().reverse().forEach(function (it) {
+        rows.push([it.time, it.role, realName(it), it.name, it.affiliation, it.comment]);
+      });
+      var csv = rows.map(function (r) {
+        return r.map(function (v) { return '"' + String(v || '').replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\r\n');
+
+      var blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (current ? current.name : '방명록') + '_소감.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+    });
+
+    /* ---------- 알림 ---------- */
+    function toast(text, isErr) {
+      var el = $('toast');
+      el.textContent = text;
+      el.className = 'toast show' + (isErr ? ' err' : '');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.className = 'toast'; }, isErr ? 4000 : 2400);
+    }
+
+    setDirty(false);
+  </script>
+</body>
+</html>

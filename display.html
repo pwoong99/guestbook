@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>방명록 디스플레이</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --sky-top: #9FD6F2;
+      --sky-mid: #C7E6F7;
+      --sky-bottom: #E9F6FD;
+      --cloud: #FFFFFF;
+      --ink: #3A3A3A;
+      --ink-soft: #6B6B6B;
+      --bw: 260px;              /* 풍선 너비 */
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body { height: 100%; margin: 0; overflow: hidden; }
+
+    body {
+      background: linear-gradient(to bottom, var(--sky-top) 0%, var(--sky-mid) 48%, var(--sky-bottom) 100%);
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: var(--ink);
+    }
+
+    body.idle { cursor: none; }
+    body.idle .fade-out { opacity: 0; }
+
+    /* ---------------- 구름 ---------------- */
+    /* 상하좌우를 한 줄로 쓰는 표기법은 크롬 87 부터입니다. 구형 기기(전자칠판 등)
+       에서 그 줄이 통째로 무시되면 레이어 크기가 0 이 되어 아무것도 보이지 않습니다. */
+    .clouds {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .cloud {
+      position: absolute;
+      background: var(--cloud);
+      border-radius: 100px;
+      animation-name: drift;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      will-change: transform;
+    }
+    .cloud::before, .cloud::after {
+      content: '';
+      position: absolute;
+      background: var(--cloud);
+      border-radius: 50%;
+    }
+    .cloud::before { width: 55%; height: 170%; left: 16%; top: -84%; }
+    .cloud::after  { width: 40%; height: 125%; left: 52%; top: -58%; }
+
+    .c1 { width: 190px; height: 54px; top: 10%; opacity: .90; animation-duration: 96s;  animation-delay: -12s; }
+    .c2 { width: 130px; height: 38px; top: 30%; opacity: .68; animation-duration: 134s; animation-delay: -58s; }
+    .c3 { width: 240px; height: 66px; top: 52%; opacity: .80; animation-duration: 112s; animation-delay: -80s; }
+    .c4 { width: 110px; height: 32px; top: 70%; opacity: .58; animation-duration: 152s; animation-delay: -26s; }
+    .c5 { width: 170px; height: 48px; top: 85%; opacity: .74; animation-duration: 104s; animation-delay: -68s; }
+
+    @keyframes drift {
+      from { transform: translateX(-32vw); }
+      to   { transform: translateX(132vw); }
+    }
+
+    /* ---------------- 풍선 ---------------- */
+    .stage {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      z-index: 2;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    /* 1겹: 자리 — 떠오르기와 밀려나기를 담당 (JS가 transform 을 조작) */
+    .slot {
+      position: absolute;
+      width: var(--bw);
+      will-change: transform, opacity;
+    }
+
+    /* 2겹: 부양 — 제자리에서 위아래로 */
+    .float {
+      animation-name: bob;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+      will-change: transform;
+    }
+    @keyframes bob {
+      from { transform: translateY(-8px); }
+      to   { transform: translateY(8px); }
+    }
+
+    /* 3겹: 흔들림 — 좌우로 기울며 */
+    .sway {
+      position: relative;
+      animation-name: sway;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: infinite;
+      animation-direction: alternate;
+      will-change: transform;
+    }
+    @keyframes sway {
+      from { transform: translateX(-6px) rotate(-1deg); }
+      to   { transform: translateX(6px) rotate(1deg); }
+    }
+
+    /* 4겹: 풍선 본체 — 모든 치수를 --bw 에 비례시켜 화면이 커지면 같이 커집니다. */
+    .balloon {
+      position: relative;
+      padding: calc(var(--bw) * .068) calc(var(--bw) * .078) calc(var(--bw) * .094);
+      border-radius: calc(var(--bw) * .154) calc(var(--bw) * .154) 48% 48%
+                   / calc(var(--bw) * .138) calc(var(--bw) * .138) 40% 40%;
+      box-shadow: 0 8px 22px rgba(47, 74, 92, .20);
+    }
+    .balloon::before {          /* 표면 광택 */
+      content: '';
+      position: absolute;
+      top: calc(var(--bw) * .05);
+      left: calc(var(--bw) * .065);
+      width: calc(var(--bw) * .2);
+      height: calc(var(--bw) * .104);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .55);
+      filter: blur(6px);
+    }
+    .balloon::after {           /* 매듭 */
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: calc(var(--bw) * -.027);
+      width: 0;
+      height: 0;
+      border-left: calc(var(--bw) * .027) solid transparent;
+      border-right: calc(var(--bw) * .027) solid transparent;
+      border-top: calc(var(--bw) * .038) solid var(--skin);
+    }
+
+    /* 끈 — 매듭 아래로 늘어뜨립니다. 자리 계산에 끼어들지 않게 흐름에서 빼 둡니다. */
+    .string {
+      position: absolute;
+      top: calc(100% + var(--bw) * .031);
+      left: 50%;
+      margin-left: calc(var(--bw) * -.069);
+      width: calc(var(--bw) * .138);
+      height: calc(var(--bw) * .177);
+      overflow: visible;
+      pointer-events: none;
+    }
+    .string path {
+      fill: none;
+      stroke: rgba(255, 255, 255, .85);
+      stroke-width: 2;
+      stroke-linecap: round;
+    }
+
+    .b0 { --skin: #FFB7B2; background: var(--skin); }
+    .b1 { --skin: #FFDAC1; background: var(--skin); }
+    .b2 { --skin: #FFF2B2; background: var(--skin); }
+    .b3 { --skin: #C7E9B0; background: var(--skin); }
+    .b4 { --skin: #B5D8F7; background: var(--skin); }
+    .b5 { --skin: #E2C6F0; background: var(--skin); }
+
+    .who {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: calc(var(--bw) * .019);
+      margin-bottom: calc(var(--bw) * .031);
+      font-size: calc(6px + var(--bw) * .027);
+      color: var(--ink-soft);
+    }
+    .nm {
+      font-weight: 700;
+      color: var(--ink);
+      font-size: calc(6.5px + var(--bw) * .031);
+    }
+    .tag {
+      padding: 2px calc(var(--bw) * .031);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .62);
+      font-size: calc(5.5px + var(--bw) * .024);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    .txt {
+      margin: 0;
+      font-size: calc(7px + var(--bw) * .0335);
+      line-height: 1.6;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    /* 방금 등록된 소감 */
+    .slot.fresh .balloon {
+      box-shadow: 0 10px 30px rgba(47, 74, 92, .3), 0 0 0 4px rgba(255, 255, 255, .8);
+    }
+    .just {
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .9);
+      font-size: 11px;
+      font-weight: 700;
+      color: #C77A2E;
+      white-space: nowrap;
+    }
+
+    /* ---------------- 화면 위 정보 ---------------- */
+    .topnav {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      display: flex;
+      gap: 6px;
+      z-index: 10;
+      transition: opacity .5s;
+    }
+    .chip {
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .8);
+      border: 1px solid rgba(255, 255, 255, .95);
+      color: #4A6B7C;
+      font-size: 13px;
+      text-decoration: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .chip:hover { background: #fff; }
+    .chip:focus-visible { outline: 2px solid #4A7C59; outline-offset: 2px; }
+
+    .title {
+      position: fixed;
+      top: 20px;
+      left: 26px;
+      z-index: 10;
+      font-family: 'Gowun Batang', serif;
+      font-size: 21px;
+      font-weight: 700;
+      color: #3E6B84;
+      text-shadow: 0 1px 2px rgba(255, 255, 255, .6);
+      transition: opacity .5s;
+    }
+
+    .counter {
+      position: fixed;
+      left: 26px;
+      bottom: 22px;
+      z-index: 10;
+      padding: 9px 16px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .72);
+      font-size: 14px;
+      color: #46707F;
+      transition: opacity .5s;
+    }
+    .counter b {
+      font-family: 'Gowun Batang', serif;
+      font-size: 17px;
+      color: #2F5A6B;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 26px;
+      transform: translateX(-50%);
+      z-index: 11;
+      padding: 10px 20px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .88);
+      color: #3E6B84;
+      font-size: 15px;
+      opacity: 0;
+      transition: opacity .3s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; }
+
+    .hint {
+      position: fixed;
+      top: 0; right: 0; bottom: 0; left: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      pointer-events: none;
+      transition: opacity .85s ease, transform .85s ease;
+    }
+    /* display 를 직접 지정했기 때문에 hidden 속성만으로는 숨겨지지 않습니다. */
+    .hint[hidden] { display: none; }
+    .hint.gone { opacity: 0; transform: translateY(-20px); }
+    .hint span {
+      padding: 20px 28px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, .78);
+      font-family: 'Gowun Batang', serif;
+      font-size: 20px;
+      color: #46707F;
+    }
+
+    /* --bw 는 스크립트가 화면 폭에 맞춰 직접 지정합니다. */
+    @media (max-width: 600px) {
+      .title { font-size: 17px; left: 14px; top: 14px; }
+      .counter { left: 14px; bottom: 14px; font-size: 12px; padding: 7px 12px; }
+      .hint span { font-size: 16px; }
+    }
+
+    /*
+     * 운영체제에서 "동작 줄이기"를 켜 두면 브라우저가 이 규칙을 적용합니다.
+     * 예전에는 여기서 애니메이션을 아예 껐는데, 정작 화면에서 가장 큰 움직임인
+     * 풍선 상승은 스크립트로 돌아가 이 설정과 무관하게 계속됩니다.
+     * 구름만 얼어붙은 어정쩡한 화면이 되므로, 끄는 대신 느리게만 합니다.
+     */
+    @media (prefers-reduced-motion: reduce) {
+      .c1 { animation-duration: 210s; }
+      .c2 { animation-duration: 265s; }
+      .c3 { animation-duration: 235s; }
+      .c4 { animation-duration: 300s; }
+      .c5 { animation-duration: 225s; }
+      .float { animation-duration: 9s !important; }
+      .sway  { animation-duration: 13s !important; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="clouds" aria-hidden="true">
+    <div class="cloud c1"></div>
+    <div class="cloud c2"></div>
+    <div class="cloud c3"></div>
+    <div class="cloud c4"></div>
+    <div class="cloud c5"></div>
+  </div>
+
+  <div class="title fade-out" id="title"></div>
+
+  <nav class="topnav fade-out">
+    <button type="button" class="chip" id="fsBtn">전체화면</button>
+    <a class="chip" id="toWrite" href="./">방명록</a>
+    <a class="chip" id="toAdmin" href="admin.html">관리자</a>
+  </nav>
+
+  <div class="stage" id="stage"></div>
+
+  <div class="hint" id="hint" hidden>
+    <span id="hintText">불러오는 중…</span>
+  </div>
+
+  <div class="counter fade-out" id="counter" hidden></div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    /* =================== 조절할 수 있는 값 =================== */
+    /**
+     * 화면 폭에 따른 풍선 기본 너비.
+     * 단일 비율(예: 폭의 9%)로는 맞출 수 없습니다. 1920px 에서 지금 크기를
+     * 유지하려면 13.5% 가 필요한데, 같은 비율을 3840px 에 적용하면
+     * 519px 짜리 거대한 풍선이 됩니다. 그래서 기준점을 두고 그 사이를 잇습니다.
+     */
+    var BW_ANCHORS = [
+      [600, 168], [1024, 206], [1440, 240], [1920, 268],
+      [2560, 310], [3440, 356], [3840, 380]
+    ];
+    var SCALE_STEP  = 0.1;    // 키보드로 한 번에 바꾸는 비율
+    var SCALE_MIN   = 0.6;
+    var SCALE_MAX   = 2.0;
+    var SCALE_KEY   = 'guestbookDisplayScale';
+
+    var STACK_WIDE  = 0.50;   // 가로로 긴 화면에서 더미가 차지할 최대 높이 비율
+    var STACK_TALL  = 0.62;   // 세로로 긴 화면 (폰) 에서의 비율
+    var TOP_PAD     = 16;     // 화면 가장자리 여백
+    var ROW_GAP     = 12;     // 줄 사이 간격
+    var Y_JITTER    = 14;     // 같은 줄에서 아래로 어긋나는 폭
+    var DENSITY     = 42000;  // 화면 넓이 몇 px² 당 풍선 하나까지 허용할지
+    var LIVE_MIN    = 8;      // 동시 표시 최소 상한
+    var LIVE_MAX    = 90;     // 동시 표시 최대 상한 (성능 안전판)
+    var RELAYOUT_MS = 800;    // 화면 크기가 바뀐 뒤 자리를 다시 잡는 시간
+    var RISE_MS     = 60000;  // 아래에서 자기 자리까지 올라오는 시간
+    var SHIFT_MIN   = 2000;   // 빈 자리로 당겨 올라오는 시간의 하한
+    var SHIFT_MAX   = 15000;  // 상한 (평소에는 거리에 맞춰 계산)
+    var GAP_MIN     = 2000;   // 출발 간격 하한
+    var GAP_MAX     = 12000;  // 출발 간격 상한
+    var RESERVE_ROWS = 2;     // 한계 아래로 미리 잡아 둘 수 있는 줄 수
+    var EVICT_GAP   = 3000;   // 위에서 한 개씩 내보내는 간격
+    var IDLE_REVIVE = 45000;  // 이 시간 동안 새로 올릴 것이 없으면 지난 소감을 다시
+    var LEAVE_MIN   = 6000;   // 사라지는 데 걸리는 시간의 하한
+    var LEAVE_MAX   = 40000;  // 상한
+    var WAVE_MIN    = 8;      // 올라오는 동안 좌우로 오가는 최소 횟수
+    var WAVE_MAX    = 13;     // 좌우로 오가는 최대 횟수
+    var WANDER_AMP  = 20;     // 좌우로 벗어나는 폭(px) — 작게 둘수록 잔잔합니다
+    var START_SPREAD = 45;    // 출발 지점이 자기 자리에서 좌우로 벌어지는 폭(px)
+    var WANDER_PTS  = 200;    // 경로를 나누어 그리는 지점 수 (물결 한 번에 15지점 이상)
+    var DISPLAY_POOL = 60;    // 처음 켤 때 띄울 최근 소감 수
+    var ENTRY_LIMIT = 1000;   // 실시간으로 지켜보는 최대 소감 수
+    var RETRY_MS    = 10000;  // 연결이 끊겼을 때 다시 붙는 간격
+    var FRESH_MS    = 10000;  // 새 소감 강조를 유지하는 시간
+    /* ======================================================= */
+
+    var COLORS = 6;
+
+    var stage = document.getElementById('stage');
+    var hint = document.getElementById('hint');
+    var counterEl = document.getElementById('counter');
+
+    var live = [];        // 화면에 떠 있는 풍선 (도착 순서)
+    var rows = [];        // 위에서부터 쌓인 줄 [{ y, h, used, items }]
+    var seen = {};        // 이미 한 번 띄운 소감
+    var pending = [];     // 자리가 나기를 기다리는 소감
+    var archive = [];     // 받아 둔 소감 전체 (다시 올릴 때 꺼내 씁니다)
+    var cyclePos = 0;     // 순환해서 꺼내는 위치
+    var everEvicted = false;   // 풍선이 한 번이라도 화면에서 사라졌는지
+    var lastLaunchAt = 0;      // 마지막으로 풍선을 내보낸 시각
+    var lastEvict = 0;    // 마지막으로 하나 내보낸 시각
+    var typicalH = 130;   // 최근 풍선 높이 (간격·용량 계산용)
+    var lastTs = 0;
+    var zTop = 10;
+    var hintGone = false;
+    var scale = 1;        // 키보드로 조절하는 배율
+
+    var eventId = '';
+    var ev = GB.normalizeEvent({});   // 관리자 설정 (실시간으로 바뀝니다)
+    var lastTotal = 0;
+    var firstSnap = true;
+    var launcherStarted = false;
+
+    /* ---------------- 화면 크기에 따른 한도 ---------------- */
+    /* ---------------- 화면 크기에 따른 값 ---------------- */
+
+    /**
+     * 풍선 너비를 화면 폭에 비례시킵니다.
+     * 고정 크기로 두면 3440px 이나 4K 화면에서 화면 폭의 7% 밖에 안 돼
+     * 멀리서는 글자가 읽히지 않습니다.
+     * 안쪽 여백·모서리·글자는 CSS 에서 --bw 에 비례하도록 두었으므로
+     * 이 값 하나만 바꾸면 풍선 전체가 같은 비율로 커집니다.
+     */
+    /** 기준점 사이를 직선으로 이어 화면 폭에 맞는 기본 너비를 구합니다. */
+    function baseWidth() {
+      var w = window.innerWidth;
+      var a = BW_ANCHORS;
+
+      if (w <= a[0][0]) return a[0][1];
+      if (w >= a[a.length - 1][0]) return a[a.length - 1][1];
+
+      for (var i = 1; i < a.length; i++) {
+        if (w <= a[i][0]) {
+          var t = (w - a[i - 1][0]) / (a[i][0] - a[i - 1][0]);
+          return a[i - 1][1] + t * (a[i][1] - a[i - 1][1]);
+        }
+      }
+      return 260;
+    }
+
+    function applySizing() {
+      var bw = baseWidth() * scale;
+      bw = Math.max(120, Math.min(760, bw));
+      document.documentElement.style.setProperty('--bw', Math.round(bw) + 'px');
+    }
+
+    function balloonWidth() {
+      return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--bw')) || 240;
+    }
+
+    /** 풍선이 커지면 글자 수도 늘려야 아래가 휑해지지 않습니다. */
+    function maxText() {
+      var bw = balloonWidth();
+      if (bw < 200) return 62;
+      return Math.max(62, Math.min(150, Math.round(90 + (bw - 230) * 0.36)));
+    }
+
+    /** 세로로 긴 화면은 위아래가 길어 50%만 쓰면 아래가 휑합니다. */
+    function stackLimit() {
+      return window.innerHeight > window.innerWidth ? STACK_TALL : STACK_WIDE;
+    }
+
+    /** 화면이 넓을수록 더 많이 띄웁니다. 성능을 지키는 안전판 역할입니다. */
+    function maxLive() {
+      var n = Math.round(window.innerWidth * window.innerHeight / DENSITY);
+      return Math.max(LIVE_MIN, Math.min(LIVE_MAX, n));
+    }
+
+    /**
+     * 옆 풍선과의 간격. 좁은 화면에서 큰 간격이 한 번 걸리면
+     * 둘째 풍선이 다음 줄로 밀려 한 줄에 하나만 남습니다.
+     */
+    function colGapRange() {
+      var w = window.innerWidth;
+      if (w < 600) return [-12, 12];
+      if (w < 1200) return [-14, 26];
+      return [-16, 42];
+    }
+
+    /* ---------------- 첫 로드 ---------------- */
+    loadScale();
+    applySizing();
+
+    GB.resolveEventId().then(function (id) {
+      eventId = id;
+      var fixed = !!GB.param('e');
+      document.getElementById('toWrite').href = './' + (fixed ? '?e=' + encodeURIComponent(id) : '');
+      document.getElementById('toAdmin').href = 'admin.html' + (id ? '?e=' + encodeURIComponent(id) : '');
+
+      // 고정 주소로 켠 화면은, 관리자가 기본 방명록을 바꾸면 스스로 새로고침합니다.
+      // 복도 TV 를 건드리지 않고 행사를 바꿀 수 있습니다.
+      if (!fixed) watchDefault(id);
+
+      if (!id) {
+        setHintText('표시할 방명록이 아직 정해지지 않았습니다');
+        showHint(true);
+        return;
+      }
+      watchEvent();
+      watchEntries();
+    }).catch(function () {
+      setHintText('연결하지 못했습니다. 잠시 후 새로고침해 주세요.');
+      showHint(true);
+    });
+
+    function watchDefault(current) {
+      db.collection('settings').doc('app').onSnapshot(function (snap) {
+        var next = (snap.exists && snap.data().defaultEventId) || '';
+        if (next !== (current || '')) location.reload();
+      }, function () {
+        setTimeout(function () { watchDefault(current); }, RETRY_MS);
+      });
+    }
+
+    /** 제목·안내 문구·누적 문구는 관리자가 바꾸는 즉시 반영됩니다. */
+    function watchEvent() {
+      db.collection('events').doc(eventId).onSnapshot(function (snap) {
+        if (!snap.exists) {
+          setHintText('방명록을 찾을 수 없습니다');
+          showHint(true);
+          return;
+        }
+        ev = GB.normalizeEvent(snap.data());
+        document.title = ev.displayTitle || ev.title;
+        document.getElementById('title').textContent = ev.displayTitle;
+        setHintText(ev.hintText);
+        setCounter(lastTotal);
+      }, function () {
+        setTimeout(watchEvent, RETRY_MS);
+      });
+    }
+
+    /**
+     * 소감을 실시간으로 지켜봅니다.
+     * 첫 응답은 지난 소감, 그 뒤로 들어오는 것은 방금 등록된 소감입니다.
+     * 관리자가 지운 소감은 화면에서도 바로 내려갑니다.
+     */
+    function watchEntries() {
+      db.collection('events').doc(eventId).collection('entries')
+        .orderBy('createdAt', 'desc')
+        .limit(ENTRY_LIMIT)
+        .onSnapshot(onEntries, function () {
+          // 리스너가 끊기면 잠시 뒤 다시 붙습니다. 이미 띄운 소감은 seen 이 걸러 줍니다.
+          firstSnap = true;
+          setTimeout(watchEntries, RETRY_MS);
+        });
+    }
+
+    function onEntries(snap) {
+      lastTotal = snap.size;
+      setCounter(lastTotal);
+
+      if (firstSnap) {
+        firstSnap = false;
+        var all = snap.docs.map(GB.entryFromDoc);   // 최신순
+        for (var i = 0; i < all.length; i++) {
+          if (all[i].ts > lastTs) lastTs = all[i].ts;
+        }
+        showHint(all.length === 0);
+        queueEntries(all.slice(0, DISPLAY_POOL).reverse(), false, false);
+
+        if (!launcherStarted) {
+          launcherStarted = true;
+          startLauncher();
+        } else {
+          tryLaunch();
+        }
+        return;
+      }
+
+      var fresh = [];
+      snap.docChanges().forEach(function (ch) {
+        if (ch.type === 'added') {
+          var item = GB.entryFromDoc(ch.doc);
+          // 더 오래된 소감이 목록 끝으로 밀려 들어온 경우는 새 소감이 아닙니다.
+          if (item.ts > lastTs) fresh.push(item);
+        } else if (ch.type === 'removed') {
+          removeEntry(ch.doc.id);
+        }
+      });
+
+      if (!fresh.length) return;
+      fresh.sort(function (a, b) { return a.ts - b.ts; });
+      lastTs = fresh[fresh.length - 1].ts;
+
+      // 새 소감은 지난 소감보다 먼저 올라갑니다.
+      queueEntries(fresh, true, true);
+      tryLaunch();
+    }
+
+    /** 관리자가 지운 소감을 대기열·보관함·화면에서 모두 뺍니다. */
+    function removeEntry(id) {
+      archive = archive.filter(function (it) { return it.id !== id; });
+      pending = pending.filter(function (p) { return p.item.id !== id; });
+
+      for (var i = 0; i < live.length; i++) {
+        if (live[i].id !== id) continue;
+        var rec = live[i];
+        live.splice(i, 1);
+
+        var row = rec.row;
+        if (row) {
+          row.items = row.items.filter(function (r) { return r !== rec; });
+          if (!row.items.length) {
+            var idx = rows.indexOf(row);
+            // 맨 아랫줄은 다음 풍선이 채울 자리이므로 남겨 둡니다.
+            // 그 위의 줄이 비면 빼고, 아래 줄들을 그만큼 당겨 올립니다.
+            if (idx > -1 && idx < rows.length - 1) {
+              var step = (row.shiftLeft !== undefined) ? row.shiftLeft : row.h + ROW_GAP;
+              rows.splice(idx, 1);
+              shiftRowsFrom(idx, step);
+            }
+          }
+        }
+        leave(rec);
+        break;
+      }
+    }
+
+    /**
+     * 받아 온 소감을 대기열에 넣습니다.
+     * 새로 등록된 소감(toFront)은 지난 소감보다 먼저 올라갑니다.
+     */
+    function queueEntries(entries, isFresh, toFront) {
+      var batch = [];
+
+      for (var i = 0; i < entries.length; i++) {
+        var item = entries[i];
+        // 같은 소감을 대기열에 두 번 넣지 않습니다.
+        var key = item.id;
+        if (seen[key]) continue;
+        seen[key] = true;
+        archive.push(item);
+        batch.push({ item: item, fresh: isFresh });
+      }
+
+      if (!batch.length) return;
+      pending = toFront ? batch.concat(pending) : pending.concat(batch);
+    }
+
+    /**
+     * 자리를 미리 잡아 두고 내보냅니다.
+     *
+     * 풍선이 올라오는 데 60초가 걸리고, 그동안 위쪽 줄은 빠져나갑니다.
+     * 그래서 지금 당장 비어 있지 않아도 곧 빌 자리를 미리 배정해 출발시킵니다.
+     * 빈자리가 생길 때까지 기다리면 흐름이 뚝뚝 끊깁니다.
+     */
+    function startLauncher() {
+      lastLaunchAt = Date.now();
+      launchTick();
+      setInterval(evictOverflow, 500);   // 퇴출은 따로 꾸준히 살핍니다
+    }
+
+    function launchTick() {
+      tryLaunch();
+      setTimeout(launchTick, launchGap());
+    }
+
+    /**
+     * 출발 간격 = 올라오는 시간 ÷ 화면 용량.
+     * 어느 화면에서든 "올라오는 중인 풍선이 화면 한 판 분량"이 되도록 맞춥니다.
+     * 고정값을 쓰면 폰에서는 너무 밀려들고 큰 화면에서는 너무 뜸해집니다.
+     */
+    function launchGap() {
+      var gap = RISE_MS / Math.max(1, screenCapacity());
+      return Math.max(GAP_MIN, Math.min(GAP_MAX, gap));
+    }
+
+    /** 화면에 들어가는 대략적인 풍선 수 */
+    function screenCapacity() {
+      var range = colGapRange();
+      var avg = (range[0] + range[1]) / 2;
+      var bw = balloonWidth();
+
+      var perRow = Math.max(1, Math.floor((window.innerWidth - TOP_PAD * 2 + avg) / (bw + avg)));
+      var rowsFit = Math.max(1, Math.floor(
+        (window.innerHeight * stackLimit() - TOP_PAD + ROW_GAP) / (typicalH + ROW_GAP)
+      ));
+
+      return Math.min(perRow * rowsFit, maxLive());
+    }
+
+    function tryLaunch() {
+      if (pending.length) {
+        if (launch(pending[0])) {
+          pending.shift();
+          lastLaunchAt = Date.now();
+        }
+        return;
+      }
+
+      var revived = pickRevive();
+      if (revived && launch({ item: revived, fresh: false })) {
+        lastLaunchAt = Date.now();
+      }
+    }
+
+    /**
+     * 올릴 새 소감이 없을 때 지난 소감을 다시 꺼냅니다.
+     *
+     * 풍선이 한 번이라도 사라진 뒤에만 시작합니다.
+     * 그 전에는 등록된 소감이 전부 화면에 떠 있으므로 다시 올릴 이유가 없습니다.
+     * 지금 화면에 있는 것은 건너뛰고, 한 바퀴 돌면 처음부터 다시 돕니다.
+     */
+    function pickRevive() {
+      if (!everEvicted) return null;
+      if (!archive.length) return null;
+      if (Date.now() - lastLaunchAt < IDLE_REVIVE) return null;
+
+      var onScreen = {};
+      for (var i = 0; i < live.length; i++) onScreen[live[i].id] = true;
+
+      for (var n = 0; n < archive.length; n++) {
+        var item = archive[cyclePos % archive.length];
+        cyclePos++;
+        if (!onScreen[item.id]) return item;
+      }
+      return null;   // 가진 소감이 전부 화면에 떠 있습니다
+    }
+
+    /* ---------------- 풍선 만들기 ---------------- */
+    /**
+     * 자리가 있으면 풍선을 띄우고 true, 자리가 없으면 아무것도 하지 않고 false.
+     * 크기를 알아야 자리를 판단할 수 있어 일단 화면 밖에서 만들어 재 봅니다.
+     */
+    function launch(entry) {
+      if (!entry || !entry.item) return true;   // 빈 항목은 버립니다
+
+      var item = entry.item;
+      var isFresh = entry.fresh;
+      var slot = buildSlot(item, isFresh);
+
+      // 크기를 재기 위해 화면 밖에 먼저 붙입니다.
+      slot.style.left = '-9999px';
+      slot.style.top = '0px';
+      stage.appendChild(slot);
+
+      var w = slot.offsetWidth;
+      var h = slot.offsetHeight;
+
+      if (!canPlace(h)) {
+        stage.removeChild(slot);   // 예약분까지 다 찼습니다. 다음 차례에 다시
+        return false;
+      }
+
+      typicalH = h;   // 다음 계산에 쓸 대표 높이
+
+      // 풍선이 하나라도 올라가면 안내 문구는 사라집니다.
+      dismissHint();
+
+      var rec = { el: slot, w: w, h: h, id: item.id, ts: item.ts, landed: false };
+      place(rec);
+      live.push(rec);
+
+      slot.style.left = rec.x.toFixed(1) + 'px';
+      slot.style.top = rec.y.toFixed(1) + 'px';
+      slot.style.zIndex = String(++zTop);
+
+      // 시작 위치: 화면 아래, 좌우로 조금 어긋난 자리
+      var dx = (Math.random() * 2 - 1) * START_SPREAD;
+      var dy = window.innerHeight + rec.h + 60 - rec.y;
+
+      // 투명도와 자리 이동은 CSS 로, 올라오는 경로는 애니메이션으로 따로 다룹니다.
+      slot.style.opacity = '0';
+      void slot.offsetWidth;
+      slot.style.transition = slideTransition(SHIFT_MIN);
+      slot.style.opacity = '1';
+
+      rec.anim = slot.animate(wanderPath(dx, dy), {
+        duration: RISE_MS,
+        fill: 'forwards',
+        easing: 'linear'
+      });
+
+      rec.anim.addEventListener('finish', function () { onLanded(rec); });
+      // 애니메이션 이벤트를 놓치는 경우를 대비한 예비 장치
+      setTimeout(function () { onLanded(rec); }, RISE_MS + 400);
+
+      if (isFresh) {
+        setTimeout(function () { slot.classList.remove('fresh'); }, FRESH_MS);
+      }
+
+      return true;
+    }
+
+    /** 자기 자리에 도착 — 이때부터 밀려날 수 있습니다. */
+    function onLanded(rec) {
+      if (rec.landed) return;
+      rec.landed = true;
+      evictOverflow();
+    }
+
+    /**
+     * 새 풍선의 자리를 잡을 수 있는지.
+     *
+     * 지금 줄에 빈 칸이 있으면 바로 되고, 없으면 새 줄을 만듭니다.
+     * 그 새 줄은 한계 높이를 넘어도 됩니다 — 올라오는 60초 동안
+     * 위쪽이 빠져나가며 전체가 위로 당겨지기 때문입니다.
+     * 다만 예상이 빗나갈 때를 대비해 RESERVE_ROWS 줄까지만 미리 잡습니다.
+     */
+    function canPlace(h) {
+      var last = rows.length ? rows[rows.length - 1] : null;
+      if (last && last.free.length) return true;
+
+      var y = last ? last.y + last.h + ROW_GAP : TOP_PAD;
+      var limit = window.innerHeight * stackLimit();
+      var reserve = RESERVE_ROWS * (h + ROW_GAP);
+
+      return (y + h) <= limit + reserve;
+    }
+
+    /**
+     * 올라오는 경로를 만듭니다.
+     *
+     * 세로는 일정한 속도로 꾸준히 올라가고(끝에서만 살짝 감속),
+     * 가로는 그와 별개로 잔잔하게 좌우를 오갑니다.
+     *
+     * 물결은 딱 떨어지는 횟수로만 돌기 때문에 시작·도착 지점이 저절로 맞고,
+     * 좌우로 벗어나는 폭이 WANDER_AMP 를 절대 넘지 않습니다.
+     * (물결을 여러 겹 포개면 가끔 두 파도가 겹쳐 크게 휘청입니다.)
+     */
+    function wanderPath(dx, dy) {
+      var cycles = WAVE_MIN + Math.floor(Math.random() * (WAVE_MAX - WAVE_MIN + 1));
+      var dir = Math.random() < 0.5 ? 1 : -1;
+      var amp = WANDER_AMP * (0.75 + Math.random() * 0.5);
+      var frames = [];
+
+      for (var i = 0; i <= WANDER_PTS; i++) {
+        var t = i / WANDER_PTS;
+
+        // 세로: 거의 일정한 속도, 자리에 닿을 무렵에만 부드럽게 감속
+        var eased = 1 - Math.pow(1 - t, 1.3);
+        var y = dy * (1 - eased);
+
+        // 가로: 출발 지점에서 자기 자리로 천천히 다가가며 잔잔하게 오감
+        var x = dx * (1 - t) + dir * amp * Math.sin(2 * Math.PI * cycles * t);
+
+        frames.push({
+          transform: 'translate(' + x.toFixed(1) + 'px,' + y.toFixed(1) + 'px)',
+          offset: Number(t.toFixed(4))
+        });
+      }
+      return frames;
+    }
+
+    function buildSlot(item, isFresh) {
+      var slot = document.createElement('div');
+      slot.className = 'slot' + (isFresh ? ' fresh' : '');
+
+      var floatEl = document.createElement('div');
+      floatEl.className = 'float';
+      // 주기를 서로 나누어떨어지지 않게 두어야 같은 박자로 움직이지 않습니다.
+      floatEl.style.animationDuration = (4.2 + Math.random() * 2.2).toFixed(2) + 's';
+      floatEl.style.animationDelay = (-Math.random() * 6).toFixed(2) + 's';
+
+      var sway = document.createElement('div');
+      sway.className = 'sway';
+      sway.style.animationDuration = (6.1 + Math.random() * 3.2).toFixed(2) + 's';
+      sway.style.animationDelay = (-Math.random() * 9).toFixed(2) + 's';
+
+      var balloon = document.createElement('div');
+      balloon.className = 'balloon b' + Math.floor(Math.random() * COLORS);
+
+      var who = document.createElement('div');
+      who.className = 'who';
+      // 구분이 하나뿐인 방명록은 구분 표시를, 이름을 받지 않는 방명록은 이름을 뺍니다.
+      if (GB.showRoleTag(ev) && item.role) who.appendChild(chip('tag', item.role));
+      if (ev.nameMode !== 'hidden') who.appendChild(chip('nm', item.name || '익명'));
+      if (item.affiliation) who.appendChild(chip('', item.affiliation));
+      if (isFresh) who.appendChild(chip('just', '방금'));
+
+      var txt = document.createElement('p');
+      txt.className = 'txt';
+      txt.textContent = trim(item.comment);   // 태그 문자가 섞여도 안전하게
+
+      balloon.appendChild(who);
+      balloon.appendChild(txt);
+      sway.appendChild(balloon);
+      sway.appendChild(makeString());
+      floatEl.appendChild(sway);
+      slot.appendChild(floatEl);
+      return slot;
+    }
+
+    /** 살짝 휘어진 끈. 휘는 방향과 정도를 풍선마다 다르게 둡니다. */
+    function makeString() {
+      var NS = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'string');
+      svg.setAttribute('viewBox', '0 0 36 46');
+      svg.setAttribute('aria-hidden', 'true');
+
+      var bend = (Math.random() < 0.5 ? 1 : -1) * (5 + Math.random() * 5);
+      var d = 'M18 0' +
+              ' C ' + (18 + bend).toFixed(1) + ' 10, ' + (18 - bend).toFixed(1) + ' 19, 18 27' +
+              ' C ' + (18 + bend * 0.7).toFixed(1) + ' 34, ' + (18 - bend * 0.6).toFixed(1) + ' 40, ' +
+              (18 + bend * 0.3).toFixed(1) + ' 46';
+
+      var path = document.createElementNS(NS, 'path');
+      path.setAttribute('d', d);
+      svg.appendChild(path);
+      return svg;
+    }
+
+    function chip(cls, text) {
+      var s = document.createElement('span');
+      if (cls) s.className = cls;
+      s.textContent = text;
+      return s;
+    }
+
+    function trim(text) {
+      var t = String(text || '').trim();
+      var max = maxText();
+      return t.length > max ? t.slice(0, max) + '…' : t;
+    }
+
+    /* ---------------- 자리 잡기 ---------------- */
+    /**
+     * 줄을 만들 때 그 줄에 들어갈 칸을 미리 다 정해 두고, 순서를 섞어 둡니다.
+     * 그래야 도착한 순서대로 왼쪽부터 차례로 채워지지 않고
+     * 한 줄 안에서 무작위 자리에 떠오릅니다.
+     */
+    function makeRow(prevRow) {
+      var range = colGapRange();
+      var avg = (range[0] + range[1]) / 2;
+      var bw = balloonWidth();
+      var usable = window.innerWidth - TOP_PAD * 2;
+
+      var count = Math.max(1, Math.floor((usable + avg) / (bw + avg)));
+
+      // 칸 사이 간격을 무작위로 정합니다. 음수면 살짝 겹칩니다.
+      var gaps = [];
+      var totalGap = 0;
+      for (var i = 0; i < count - 1; i++) {
+        var g = range[0] + Math.random() * (range[1] - range[0]);
+        gaps.push(g);
+        totalGap += g;
+      }
+
+      // 무작위 간격이 크게 걸려 줄이 넘치면, 넘친 만큼 간격을 고르게 줄입니다.
+      var needed = count * bw + totalGap;
+      if (needed > usable && count > 1) {
+        var shrink = (needed - usable) / (count - 1);
+        for (var j = 0; j < gaps.length; j++) gaps[j] -= shrink;
+        needed = usable;
+      }
+
+      // 남는 폭의 일부만 왼쪽 여백으로 써서 줄마다 시작점이 달라지게 합니다.
+      var indent = Math.max(0, usable - needed) * (0.15 + Math.random() * 0.7);
+
+      var slots = [];
+      var x = TOP_PAD + indent;
+      for (var k = 0; k < count; k++) {
+        slots.push(x);
+        x += bw + (gaps[k] || 0);
+      }
+
+      var free = [];
+      for (var m = 0; m < count; m++) free.push(m);
+      shuffle(free);
+
+      return {
+        y: prevRow ? prevRow.y + prevRow.h + ROW_GAP : TOP_PAD,
+        h: 0,
+        slots: slots,
+        free: free,
+        items: []
+      };
+    }
+
+    function shuffle(arr) {
+      for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+      }
+      return arr;
+    }
+
+    function place(rec) {
+      var row = rows.length ? rows[rows.length - 1] : null;
+
+      if (!row || !row.free.length) {
+        row = makeRow(row);
+        rows.push(row);
+      }
+
+      var idx = row.free.pop();      // 이미 섞여 있으므로 무작위 칸입니다
+
+      rec.row = row;
+      rec.jitter = Math.random() * Y_JITTER;   // 아래로만 어긋나게 (위로 삐져나가지 않도록)
+      rec.x = row.slots[idx];
+      rec.y = row.y + rec.jitter;
+
+      row.h = Math.max(row.h, rec.h + rec.jitter);
+      row.items.push(rec);
+    }
+
+    function stackBottom() {
+      var last = rows[rows.length - 1];
+      return last ? last.y + last.h : 0;
+    }
+
+    /* ---------------- 밀어내기 ---------------- */
+    /**
+     * 더미가 화면의 한계 높이를 넘으면 가장 먼저 쌓였던 맨 윗줄이
+     * 위로 빠져나가고, 남은 줄들이 그 자리로 당겨 올라옵니다.
+     */
+    /**
+     * 더미가 한계 높이를 넘으면 맨 윗줄부터 풍선이 하나씩 빠져나갑니다.
+     *
+     * 줄을 통째로 내보내면 폰처럼 한 줄이 2칸인 화면에서 두 개가 한꺼번에
+     * 사라져 "슉" 하고 튑니다. 그래서 EVICT_GAP 간격으로 한 개씩만 내보내고,
+     * 그 줄이 다 비면 그때 아래 줄들이 위로 당겨 올라옵니다.
+     *
+     * 아직 올라오는 중인 풍선은 건드리지 않습니다.
+     * 그러지 않으면 화면 중턱을 오르던 풍선이 갑자기 방향을 틀어 사라집니다.
+     */
+    function evictOverflow() {
+      if (Date.now() - lastEvict < EVICT_GAP) return;
+      if (!needsRoom()) return;
+      if (evictOne()) lastEvict = Date.now();
+    }
+
+    function needsRoom() {
+      if (rows.length <= 1) return false;
+      if (stackBottom() > window.innerHeight * stackLimit()) return true;
+      if (live.length > maxLive()) return true;
+      return blocked();
+    }
+
+    /**
+     * 대기 중인 풍선이 있는데 예약분까지 다 찬 상태.
+     * 이 조건이 없으면 어중간한 높이에서 대기열이 영영 풀리지 않습니다.
+     */
+    function blocked() {
+      if (!pending.length) return false;
+
+      var last = rows.length ? rows[rows.length - 1] : null;
+      if (last && last.free.length) return false;
+
+      return !canPlace(typicalH);
+    }
+
+    /** 맨 윗줄에서 도착이 끝난 풍선 하나를 내보냅니다. */
+    function evictOne() {
+      var top = rows[0];
+      var idx = -1;
+
+      for (var i = 0; i < top.items.length; i++) {
+        if (top.items[i].landed) { idx = i; break; }
+      }
+      if (idx === -1) return false;   // 아직 아무도 도착하지 않은 줄
+
+      // 이 줄이 다 빠지면 아래가 올라올 총 거리
+      if (top.shiftLeft === undefined) top.shiftLeft = top.h + ROW_GAP;
+
+      var rec = top.items.splice(idx, 1)[0];
+      live = live.filter(function (r) { return r !== rec; });
+      leave(rec);
+      everEvicted = true;   // 이제부터 지난 소감을 다시 올릴 수 있습니다
+
+      /*
+       * 줄이 다 비기를 기다리지 않고, 하나 빠질 때마다 그만큼씩 아래가 올라옵니다.
+       * 남은 거리를 남은 개수로 나누므로, 마지막 하나가 빠질 때 총 이동이
+       * 정확히 한 줄 높이가 됩니다.
+       */
+      var remaining = top.items.length + 1;   // 방금 뺀 것 포함
+      var step = top.shiftLeft / remaining;
+      top.shiftLeft -= step;
+      shiftRowsUp(step);
+
+      if (!top.items.length) rows.shift();
+      return true;
+    }
+
+    /** 맨 윗줄을 뺀 나머지 줄을 step 만큼 위로 당깁니다. */
+    function shiftRowsUp(step) {
+      shiftRowsFrom(1, step);
+    }
+
+    /** start 번째 줄부터 아래 줄을 모두 step 만큼 위로 당깁니다. */
+    function shiftRowsFrom(start, step) {
+      if (step <= 0) return;
+      var ms = shiftDuration(step);
+
+      for (var i = start; i < rows.length; i++) {
+        var row = rows[i];
+        row.y -= step;
+        row.items.forEach(function (rec) {
+          rec.y = row.y + rec.jitter;
+          rec.el.style.transition = slideTransition(ms);
+          rec.el.style.top = rec.y.toFixed(1) + 'px';
+        });
+      }
+    }
+
+    function slideTransition(ms) {
+      return 'top ' + ms + 'ms ease-out, left ' + ms + 'ms ease-out, opacity 1600ms ease-out';
+    }
+
+    /**
+     * 위로 당겨 올라오는 데 걸리는 시간.
+     *
+     * 고정값으로 두면 짧은 거리를 몇 배 빠르게 움직여 그 순간만 속도가 튑니다.
+     * 사라질 때와 같이, 올라올 때의 속도를 그대로 쓰도록 거리에 맞춰 계산합니다.
+     */
+    function shiftDuration(distance, h) {
+      var riseDistance = window.innerHeight + (h || typicalH) + 60;
+      var ms = Math.round(RISE_MS * Math.abs(distance) / Math.max(1, riseDistance));
+      return Math.max(SHIFT_MIN, Math.min(SHIFT_MAX, ms));
+    }
+
+    function leave(rec) {
+      var el = rec.el;
+      // 경로 애니메이션이 살아 있으면 아래 지정이 먹지 않습니다.
+      if (rec.anim) rec.anim.cancel();
+
+      // 새로 올라오는 풍선이 위에 오도록 뒤로 보냅니다.
+      el.style.zIndex = '1';
+
+      /*
+       * 올라올 때와 같은 속도로, 화면 위로 미끄러져 나가며 사라집니다.
+       *
+       * 투명도를 전 구간에 걸쳐 줄이면 제자리에서 옅어지다 뿅 하고 없어지는
+       * 것처럼 보입니다. 그래서 70% 지점까지는 또렷하게 두고, 화면 위쪽
+       * 가장자리를 넘어설 무렵에만 마저 옅어지게 합니다.
+       */
+      var distance = rec.y + rec.h + 140;
+      var riseDistance = window.innerHeight + rec.h + 60;
+      var ms = Math.max(LEAVE_MIN, Math.min(LEAVE_MAX,
+        Math.round(RISE_MS * distance / Math.max(1, riseDistance))));
+
+      el.animate([
+        { transform: 'translateY(0)', opacity: 1, offset: 0 },
+        { opacity: 1, offset: 0.7 },
+        { transform: 'translateY(' + (-distance).toFixed(1) + 'px)', opacity: 0, offset: 1 }
+      ], {
+        duration: ms,
+        easing: 'linear',
+        fill: 'forwards'
+      });
+
+      setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, ms + 200);
+    }
+
+    /* ---------------- 창 크기 변경 ---------------- */
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        applySizing();
+        relayout();
+      }, 350);
+    });
+
+    /**
+     * 화면 크기가 바뀌면 줄을 처음부터 다시 짭니다.
+     * 폭이 넓어지면 한 줄에 더 들어가고, 좁아지면 아래로 밀려 내려갑니다.
+     * 넘치는 줄은 그때 정리합니다.
+     */
+    function relayout() {
+      rows = [];
+
+      live.forEach(function (rec) {
+        rec.w = rec.el.offsetWidth;    // 미디어쿼리로 풍선 너비가 바뀌었을 수 있습니다
+        rec.h = rec.el.offsetHeight;
+        place(rec);
+
+        rec.el.style.transition = slideTransition(RELAYOUT_MS);
+        rec.el.style.left = rec.x.toFixed(1) + 'px';
+        rec.el.style.top = rec.y.toFixed(1) + 'px';
+      });
+
+      evictOverflow();
+      tryLaunch();
+    }
+
+    /* ---------------- 화면 위 정보 ---------------- */
+    function setCounter(total) {
+      // 관리자가 누적 문구를 비워 두면 표시하지 않습니다.
+      if (!total || !ev.counterText) {
+        counterEl.hidden = true;
+        return;
+      }
+      counterEl.hidden = false;
+      GB.fillCounter(counterEl, ev.counterText, total);
+    }
+
+    function setHintText(text) {
+      document.getElementById('hintText').textContent = text || '';
+    }
+
+    /**
+     * 안내 문구는 한 번 사라지면 다시 나타나지 않습니다.
+     * 소감이 모두 밀려나 화면이 잠시 비어도 문구가 되살아나면 어색합니다.
+     */
+    function dismissHint() {
+      if (hintGone) return;
+      hintGone = true;
+      hint.classList.add('gone');
+      setTimeout(function () { hint.hidden = true; }, 900);
+    }
+
+    function showHint(show) {
+      if (hintGone) return;
+      hint.hidden = !show;
+    }
+
+    /* ---------------- 키보드로 크기 조절 ---------------- */
+    /**
+     * 교실마다 화면 크기와 보는 거리가 달라 자동 계산만으로는 부족합니다.
+     * + / - 로 그 자리에서 맞추고, 그 값을 브라우저에 기억해 둡니다.
+     */
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      if (e.key === '+' || e.key === '=') {
+        changeScale(SCALE_STEP);
+      } else if (e.key === '-' || e.key === '_') {
+        changeScale(-SCALE_STEP);
+      } else if (e.key === '0') {
+        setScale(1);
+      } else {
+        return;
+      }
+      e.preventDefault();
+    });
+
+    function changeScale(delta) {
+      setScale(scale + delta);
+    }
+
+    function setScale(value) {
+      var next = Math.max(SCALE_MIN, Math.min(SCALE_MAX, Math.round(value * 100) / 100));
+      if (next === scale) return;
+
+      scale = next;
+      saveScale();
+      applySizing();
+      relayout();
+      toast('풍선 크기 ' + Math.round(scale * 100) + '%');
+      wake();
+    }
+
+    function loadScale() {
+      try {
+        var v = parseFloat(localStorage.getItem(SCALE_KEY));
+        if (v >= SCALE_MIN && v <= SCALE_MAX) scale = v;
+      } catch (err) {
+        // 저장소를 못 쓰는 환경이면 기본값으로 둡니다.
+      }
+    }
+
+    function saveScale() {
+      try {
+        localStorage.setItem(SCALE_KEY, String(scale));
+      } catch (err) {
+        // 기억은 못 해도 이번 화면에는 적용됩니다.
+      }
+    }
+
+    var toastTimer = null;
+    function toast(text) {
+      var el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(function () { el.classList.remove('show'); }, 1600);
+    }
+
+    /* ---------------- 전체화면 / 커서 숨김 ---------------- */
+    document.getElementById('fsBtn').addEventListener('click', function () {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      }
+    });
+
+    var idleTimer = null;
+    function wake() {
+      document.body.classList.remove('idle');
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(function () {
+        document.body.classList.add('idle');
+      }, 3000);
+    }
+    document.addEventListener('mousemove', wake);
+    document.addEventListener('touchstart', wake);
+    wake();
+  </script>
+</body>
+</html>

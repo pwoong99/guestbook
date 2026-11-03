@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>방명록</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #F7F3EA;
+      --surface: #FFFFFF;
+      --primary: #4A7C59;
+      --primary-d: #3A6347;
+      --accent: #A8C4A2;
+      --badge-t-bg: #E6EFE7;
+      --badge-t-fg: #3A6347;
+      --text: #2F3A33;
+      --muted: #7A857D;
+      --line: #E7E1D5;
+      --danger: #B4503F;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      padding: 0 16px 64px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    .wrap { max-width: 640px; margin: 0 auto; }
+
+    .topnav {
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 20;
+    }
+    .chip {
+      display: inline-block;
+      padding: 7px 13px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .92);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+      text-decoration: none;
+      box-shadow: 0 1px 4px rgba(47, 58, 51, .08);
+    }
+    .chip:hover { color: var(--primary-d); border-color: var(--accent); }
+    .chip:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+    header { padding: 52px 0 28px; text-align: center; }
+    header h1 {
+      margin: 0 0 8px;
+      font-family: 'Gowun Batang', serif;
+      font-size: 29px;
+      font-weight: 700;
+      letter-spacing: -.01em;
+      color: var(--primary-d);
+    }
+    header p { margin: 0; color: var(--muted); font-size: 15px; white-space: pre-wrap; }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      box-shadow: 0 2px 10px rgba(47, 58, 51, .06);
+    }
+
+    .notice {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px 20px;
+      font-size: 15px;
+    }
+    .notice b {
+      display: block;
+      margin-bottom: 6px;
+      font-family: 'Gowun Batang', serif;
+      font-size: 19px;
+      color: var(--primary-d);
+    }
+
+    .field { margin-bottom: 20px; }
+    .field.last { margin-bottom: 22px; }
+
+    .label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+    }
+    .opt {
+      margin-left: 5px;
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--muted);
+    }
+    .opt.req { color: var(--danger); }
+
+    .guide {
+      margin: -3px 0 9px;
+      font-size: 13px;
+      color: var(--primary);
+      white-space: pre-wrap;
+    }
+
+    input[type=text], textarea, select {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #FDFCF8;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    input[type=text]:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(74, 124, 89, .13);
+    }
+    textarea { resize: vertical; min-height: 118px; }
+    input::placeholder, textarea::placeholder { color: #B3AFA4; }
+
+    .role-group { display: flex; flex-wrap: wrap; gap: 10px; }
+    .role-btn {
+      flex: 1 1 130px;
+      padding: 14px 8px;
+      border: 1.5px solid var(--line);
+      border-radius: 12px;
+      background: #FDFCF8;
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .role-btn:hover { border-color: var(--accent); }
+    .role-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .role-btn.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #fff;
+    }
+
+    .selects { display: flex; gap: 10px; }
+    .selects select { flex: 1; }
+
+    .counter {
+      margin-top: 6px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .counter.over { color: var(--danger); }
+
+    .submit {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .submit:hover:not(:disabled) { background: var(--primary-d); }
+    .submit:disabled { background: #C8CEC8; cursor: not-allowed; }
+    .submit:focus-visible { outline: 2px solid var(--primary-d); outline-offset: 2px; }
+
+    .msg {
+      margin: 14px 0 0;
+      padding: 11px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      text-align: center;
+    }
+    .msg.ok { background: var(--badge-t-bg); color: var(--badge-t-fg); }
+    .msg.err { background: #FBEAE6; color: var(--danger); }
+
+    @media (max-width: 420px) {
+      header { padding-top: 56px; }
+      header h1 { font-size: 25px; }
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="topnav">
+    <a class="chip" id="toDisplay" href="display.html">디스플레이</a>
+    <a class="chip" id="toAdmin" href="admin.html">관리자</a>
+  </nav>
+
+  <div class="wrap">
+    <header>
+      <h1 id="title">방명록</h1>
+      <p id="subtitle"></p>
+    </header>
+
+    <!-- 불러오는 중 / 방명록 없음 / 마감 -->
+    <section class="card notice" id="noticeCard">
+      <span id="noticeText">불러오는 중…</span>
+    </section>
+
+    <!-- 작성 양식 -->
+    <section class="card" id="formCard" hidden>
+      <div class="field" id="roleField">
+        <span class="label" id="roleLabel"></span>
+        <div class="role-group" id="roleGroup"></div>
+      </div>
+
+      <div class="field" id="nameField">
+        <label class="label" for="name"><span id="nameLabel">이름</span><span class="opt" id="nameOpt">선택</span></label>
+        <input type="text" id="name" maxlength="20">
+      </div>
+
+      <div class="field" id="textField" hidden>
+        <label class="label" for="affiliation"><span id="textLabel"></span><span class="opt">선택</span></label>
+        <input type="text" id="affiliation" maxlength="30">
+      </div>
+
+      <div class="field" id="classField" hidden>
+        <span class="label"><span id="classLabel"></span><span class="opt">선택</span></span>
+        <div class="selects">
+          <select id="grade" aria-label="학년"></select>
+          <select id="klass" aria-label="반"></select>
+        </div>
+      </div>
+
+      <div class="field last">
+        <label class="label" for="comment" id="commentLabel">소감</label>
+        <p class="guide" id="guide"></p>
+        <textarea id="comment"></textarea>
+        <div class="counter" id="counter"><span id="count">0</span>/<span id="max">500</span></div>
+      </div>
+
+      <button type="button" class="submit" id="submitBtn" disabled>소감 남기기</button>
+      <p class="msg" id="msg" hidden></p>
+    </section>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="common.js"></script>
+  <script>
+    var eventId = '';
+    var ev = null;
+    var selectedRole = '';
+    var sending = false;
+    var msgTimer = null;
+    var builtGradeCount = 0;
+    var builtClassCount = 0;
+
+    var el = {
+      title: document.getElementById('title'),
+      subtitle: document.getElementById('subtitle'),
+      noticeCard: document.getElementById('noticeCard'),
+      noticeText: document.getElementById('noticeText'),
+      formCard: document.getElementById('formCard'),
+      roleField: document.getElementById('roleField'),
+      roleLabel: document.getElementById('roleLabel'),
+      roleGroup: document.getElementById('roleGroup'),
+      nameField: document.getElementById('nameField'),
+      nameLabel: document.getElementById('nameLabel'),
+      nameOpt: document.getElementById('nameOpt'),
+      name: document.getElementById('name'),
+      textField: document.getElementById('textField'),
+      textLabel: document.getElementById('textLabel'),
+      affiliation: document.getElementById('affiliation'),
+      classField: document.getElementById('classField'),
+      classLabel: document.getElementById('classLabel'),
+      grade: document.getElementById('grade'),
+      klass: document.getElementById('klass'),
+      commentLabel: document.getElementById('commentLabel'),
+      guide: document.getElementById('guide'),
+      comment: document.getElementById('comment'),
+      count: document.getElementById('count'),
+      max: document.getElementById('max'),
+      counter: document.getElementById('counter'),
+      submitBtn: document.getElementById('submitBtn'),
+      msg: document.getElementById('msg')
+    };
+
+    el.roleGroup.addEventListener('click', onRoleClick);
+    el.comment.addEventListener('input', onCommentInput);
+    el.name.addEventListener('input', updateSubmitState);
+    el.submitBtn.addEventListener('click', submit);
+
+    /* ---------- 방명록 찾기 ---------- */
+    GB.resolveEventId().then(function (id) {
+      eventId = id;
+      document.getElementById('toDisplay').href = 'display.html' + (GB.param('e') ? '?e=' + encodeURIComponent(id) : '');
+      document.getElementById('toAdmin').href = 'admin.html' + (id ? '?e=' + encodeURIComponent(id) : '');
+
+      if (!id) {
+        showNotice('아직 열린 방명록이 없습니다', '관리자 화면에서 방명록을 만들어 주세요.');
+        return;
+      }
+
+      // 관리자가 설정을 바꾸면 열려 있는 화면에도 바로 반영됩니다.
+      db.collection('events').doc(id).onSnapshot(function (snap) {
+        if (!snap.exists) {
+          showNotice('방명록을 찾을 수 없습니다', '주소를 다시 확인해 주세요.');
+          return;
+        }
+        ev = GB.normalizeEvent(snap.data());
+        render();
+      }, function () {
+        showNotice('연결하지 못했습니다', '잠시 후 새로고침해 주세요.');
+      });
+    }).catch(function () {
+      showNotice('연결하지 못했습니다', '잠시 후 새로고침해 주세요.');
+    });
+
+    function showNotice(head, sub) {
+      el.formCard.hidden = true;
+      el.noticeCard.hidden = false;
+      el.noticeText.innerHTML = '';
+      var b = document.createElement('b');
+      b.textContent = head;
+      el.noticeText.appendChild(b);
+      if (sub) el.noticeText.appendChild(document.createTextNode(sub));
+    }
+
+    /* ---------- 화면 그리기 (입력 중인 내용은 그대로 둡니다) ---------- */
+    function render() {
+      document.title = ev.title;
+      el.title.textContent = ev.title;
+      el.subtitle.textContent = ev.subtitle;
+
+      if (!ev.open) {
+        showNotice('지금은 방명록을 받지 않습니다', '참여해 주셔서 고맙습니다.');
+        return;
+      }
+      el.noticeCard.hidden = true;
+      el.formCard.hidden = false;
+
+      // 참여자 구분
+      el.roleLabel.textContent = ev.roleLabel;
+      if (!GB.findRole(ev, selectedRole)) selectedRole = '';
+      if (ev.roles.length === 1) selectedRole = ev.roles[0].label;
+      el.roleField.hidden = ev.roles.length === 1;
+
+      el.roleGroup.innerHTML = '';
+      ev.roles.forEach(function (r) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'role-btn' + (r.label === selectedRole ? ' active' : '');
+        btn.setAttribute('data-role', r.label);
+        btn.textContent = r.label;
+        el.roleGroup.appendChild(btn);
+      });
+
+      // 이름
+      el.nameField.hidden = ev.nameMode === 'hidden';
+      el.nameLabel.textContent = ev.nameLabel;
+      el.nameOpt.textContent = ev.nameMode === 'required' ? '필수' : '선택';
+      el.nameOpt.className = 'opt' + (ev.nameMode === 'required' ? ' req' : '');
+      el.name.placeholder = ev.namePlaceholder;
+
+      // 학년·반 목록은 개수가 바뀔 때만 다시 만듭니다.
+      if (builtGradeCount !== ev.gradeCount || builtClassCount !== ev.classCount) {
+        var g = el.grade.value;
+        var c = el.klass.value;
+        el.grade.innerHTML = '';
+        el.klass.innerHTML = '';
+        el.grade.appendChild(new Option('학년', ''));
+        el.klass.appendChild(new Option('반', ''));
+        for (var i = 1; i <= ev.gradeCount; i++) el.grade.appendChild(new Option(i + '학년', i));
+        for (var j = 1; j <= ev.classCount; j++) el.klass.appendChild(new Option(j + '반', j));
+        el.grade.value = (g && g <= ev.gradeCount) ? g : '';
+        el.klass.value = (c && c <= ev.classCount) ? c : '';
+        builtGradeCount = ev.gradeCount;
+        builtClassCount = ev.classCount;
+      }
+
+      // 소감
+      el.commentLabel.textContent = ev.commentLabel;
+      el.guide.textContent = ev.guide;
+      el.guide.hidden = !ev.guide;
+      el.comment.placeholder = ev.placeholder;
+      el.comment.setAttribute('maxlength', ev.maxComment);
+      el.max.textContent = ev.maxComment;
+      if (!sending) el.submitBtn.textContent = ev.submitLabel;
+
+      applyRoleFields();
+      onCommentInput();
+    }
+
+    /* ---------- 입력 ---------- */
+    function onRoleClick(e) {
+      var btn = e.target.closest('.role-btn');
+      if (!btn) return;
+      selectedRole = btn.getAttribute('data-role');
+
+      var buttons = el.roleGroup.querySelectorAll('.role-btn');
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].classList.toggle('active', buttons[i] === btn);
+      }
+      // 구분을 바꾸면 추가 입력은 비웁니다.
+      el.affiliation.value = '';
+      el.grade.value = '';
+      el.klass.value = '';
+      applyRoleFields();
+      updateSubmitState();
+    }
+
+    /** 고른 구분에 맞는 추가 입력 칸만 보여 줍니다. */
+    function applyRoleFields() {
+      var role = GB.findRole(ev, selectedRole);
+      var extra = role ? role.extra : 'none';
+
+      el.textField.hidden = extra !== 'text';
+      el.classField.hidden = extra !== 'class';
+
+      if (role && extra === 'text') {
+        el.textLabel.textContent = role.extraLabel || '소속';
+        el.affiliation.placeholder = role.extraPlaceholder || '';
+      }
+      if (role && extra === 'class') {
+        el.classLabel.textContent = role.extraLabel || '학급';
+      }
+    }
+
+    function onCommentInput() {
+      var len = el.comment.value.length;
+      el.count.textContent = len;
+      el.counter.classList.toggle('over', ev && len >= ev.maxComment);
+      updateSubmitState();
+    }
+
+    function updateSubmitState() {
+      if (!ev || sending) {
+        el.submitBtn.disabled = true;
+        return;
+      }
+      var ok = !!selectedRole && !!el.comment.value.trim();
+      if (ev.nameMode === 'required' && !el.name.value.trim()) ok = false;
+      el.submitBtn.disabled = !ok;
+    }
+
+    /* ---------- 등록 ---------- */
+    function submit() {
+      if (el.submitBtn.disabled || !ev) return;
+
+      var role = GB.findRole(ev, selectedRole);
+      if (!role) return;
+
+      var comment = el.comment.value.trim().slice(0, ev.maxComment);
+      var rawName = ev.nameMode === 'hidden' ? '' : el.name.value.trim().slice(0, 20);
+
+      // 이름 가리기는 저장하기 전에 합니다. 공개 문서에는 원래 이름이 아예 들어가지 않습니다.
+      var publicName = role.mask ? GB.maskName(rawName) : rawName;
+
+      var affiliation = '';
+      if (role.extra === 'text') {
+        affiliation = el.affiliation.value.trim().slice(0, 30);
+      } else if (role.extra === 'class') {
+        var g = parseInt(el.grade.value, 10);
+        var c = parseInt(el.klass.value, 10);
+        if (g && c) affiliation = g + '학년 ' + c + '반';
+        else if (g) affiliation = g + '학년';
+      }
+
+      var evRef = db.collection('events').doc(eventId);
+      var entryRef = evRef.collection('entries').doc();
+      var privRef = evRef.collection('private').doc(entryRef.id);
+      var now = firebase.firestore.FieldValue.serverTimestamp();
+
+      var batch = db.batch();
+      batch.set(entryRef, {
+        role: role.label,
+        name: publicName,
+        affiliation: affiliation,
+        comment: comment,
+        createdAt: now
+      });
+      batch.set(privRef, { name: rawName, createdAt: now });
+
+      sending = true;
+      el.submitBtn.disabled = true;
+      el.submitBtn.textContent = '남기는 중…';
+      hideMsg();
+
+      batch.commit().then(function () {
+        sending = false;
+        el.submitBtn.textContent = ev.submitLabel;
+        resetForm();
+        showMsg(ev.successMessage || '등록했습니다.', true);
+      }).catch(function (err) {
+        sending = false;
+        el.submitBtn.textContent = ev.submitLabel;
+        var denied = err && err.code === 'permission-denied';
+        showMsg(denied
+          ? '지금은 등록할 수 없습니다. 방명록이 마감되었는지 확인해 주세요.'
+          : '연결이 불안정합니다. 잠시 후 다시 눌러 주세요.', false);
+        updateSubmitState();
+      });
+    }
+
+    function resetForm() {
+      selectedRole = ev.roles.length === 1 ? ev.roles[0].label : '';
+      var buttons = el.roleGroup.querySelectorAll('.role-btn');
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].classList.toggle('active', buttons[i].getAttribute('data-role') === selectedRole);
+      }
+      el.name.value = '';
+      el.affiliation.value = '';
+      el.grade.value = '';
+      el.klass.value = '';
+      el.comment.value = '';
+      applyRoleFields();
+      onCommentInput();
+    }
+
+    function showMsg(text, ok) {
+      clearTimeout(msgTimer);
+      el.msg.textContent = text;
+      el.msg.className = 'msg ' + (ok ? 'ok' : 'err');
+      el.msg.hidden = false;
+      if (ok) msgTimer = setTimeout(hideMsg, 3000);
+    }
+
+    function hideMsg() { el.msg.hidden = true; }
+  </script>
+</body>
+</html>
